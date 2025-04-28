@@ -6,7 +6,7 @@
 #include <SDL3/SDL_main.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+//BOOOOBS BOOBS BOOBS BOOBS
 typedef struct {
     SDL_Window* window;
     SDL_Renderer* renderer;
