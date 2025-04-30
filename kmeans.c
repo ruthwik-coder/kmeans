@@ -78,21 +78,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
              props = SDL_GetTextureProperties(app_state->texture);
 
-         
-
-           
-typedef enum SDL_Colorspace
-{
-  
-
-    SDL_COLORSPACE_RGB_DEFAULT = SDL_COLORSPACE_SRGB, /**< The default colorspace for RGB surfaces if no colorspace is specified */
-    SDL_COLORSPACE_YUV_DEFAULT = SDL_COLORSPACE_JPEG  /**< The default colorspace for YUV surfaces if no colorspace is specified */
-} SDL_Colorspace;
-            
-            
-
-
-
 
     }
         
@@ -102,7 +87,7 @@ typedef enum SDL_Colorspace
    
 SDL_Colorspace s=SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER, 0);
 
-    
+
     if (props == 0) {
         printf("Failed to get texture properties: %s\n", SDL_GetError());
        return  SDL_APP_FAILURE;
@@ -125,7 +110,13 @@ SDL_Colorspace s=SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER
     printf("- SDR White Point: %.2f\n", sdr_white);
     printf("- HDR Headroom: %.2f\n", hdr_headroom);
     //SDL_GetRGB();
-    
+        
+   // SDL_GetTextureSize(app_state->texture, (float) &width,(float) &height);
+
+    //void* pixels;
+    //int pitch;
+   
+
 //     SDL_Rect pixelRect;
 // pixelRect.x = 250;
 // pixelRect.y = 250;
@@ -151,6 +142,21 @@ SDL_Colorspace s=SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER
         SDL_RenderTexture(app_state->renderer, app_state->texture, NULL, NULL);
     }
     SDL_RenderPresent(app_state->renderer);
+     SDL_LockTexture(app_state->texture, NULL, (void **) frame->pixels, (void *)frame->pitch);
+
+    // Access pixel data
+    Uint32* pixelData = (Uint32*)frame->pixels;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            // Example: Access the pixel at (x, y)
+            Uint32 pixelValue = pixelData[y * (int)(width) + x];  // Use (int)(width) for integer calculation
+            printf("%d \n",pixelValue);
+            // Do something with pixelValue...
+        }
+    }
+
+    SDL_UnlockTexture(app_state->texture);
     return SDL_APP_CONTINUE;
 }
 
