@@ -9,17 +9,22 @@ LIB_DIR = C:\msys64\mingw64\lib
 CFLAGS = -I"$(INCLUDE_DIR)"
 LDFLAGS = -L"$(LIB_DIR)" -lmingw32 -lSDL3
 
-# Target
-TARGET = kmeans.exe
-SRC = kmeans.c
+# Targets
+TARGETS = kmeans.exe sample.exe
+
+# Sources
+KMEANS_SRC = kmeans.c
+SAMPLE_SRC = sample.c
 
 # Build Rule
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(SRC)
-	$(CC) $(SRC) -o $(TARGET) $(CFLAGS) $(LDFLAGS)
+kmeans.exe: $(KMEANS_SRC)
+	$(CC) $(KMEANS_SRC) -o kmeans.exe $(CFLAGS) $(LDFLAGS)
+
+sample.exe: $(SAMPLE_SRC)
+	$(CC) $(SAMPLE_SRC) -o sample.exe $(CFLAGS) $(LDFLAGS)
 
 # Clean Rule
 clean:
-	del /Q $(TARGET)
-
+	del /Q $(TARGETS)

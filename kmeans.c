@@ -69,40 +69,13 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
             app_state->texture = SDL_CreateTexture(app_state->renderer, frame->format, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
         } else {
             SDL_UpdateTexture(app_state->texture, NULL, frame->pixels, frame->pitch);
-           
+      
 
         }
-    
-        SDL_ReleaseCameraFrame(app_state->camera, frame);
+printf(".. \n");
+
+ props = SDL_GetTextureProperties(app_state->texture);
         
-
-             props = SDL_GetTextureProperties(app_state->texture);
-
-         
-
-           
-typedef enum SDL_Colorspace
-{
-  
-
-    SDL_COLORSPACE_RGB_DEFAULT = SDL_COLORSPACE_SRGB, /**< The default colorspace for RGB surfaces if no colorspace is specified */
-    SDL_COLORSPACE_YUV_DEFAULT = SDL_COLORSPACE_JPEG  /**< The default colorspace for YUV surfaces if no colorspace is specified */
-} SDL_Colorspace;
-            
-            
-
-
-
-
-    }
-        
-    SDL_SetRenderDrawColorFloat(app_state->renderer, 0.3f, 0.5f, 1.0f, SDL_ALPHA_OPAQUE_FLOAT);
-    SDL_RenderClear(app_state->renderer);
-
-   
-SDL_Colorspace s=SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER, 0);
-
-    
     if (props == 0) {
         printf("Failed to get texture properties: %s\n", SDL_GetError());
        return  SDL_APP_FAILURE;
@@ -114,17 +87,58 @@ SDL_Colorspace s=SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER
     int width = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0);
     int height = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0);
     int colorspace = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER, 0);
-    float sdr_white = SDL_GetFloatProperty(props, SDL_PROP_TEXTURE_SDR_WHITE_POINT_FLOAT, 1.0f);
-    float hdr_headroom = SDL_GetFloatProperty(props, SDL_PROP_TEXTURE_HDR_HEADROOM_FLOAT, 1.0f);
-    
-    printf("Texture Properties:\n");
-    printf("- Format: %d\n", format);
-    printf("- Access: %d\n", access);
-    printf("- Size: %dx%d\n", width, height);
-    printf("- Colorspace: %d\n", colorspace);
-    printf("- SDR White Point: %.2f\n", sdr_white);
-    printf("- HDR Headroom: %.2f\n", hdr_headroom);
+
+
+
+//         Uint32* pixels = (Uint32*)frame->pixels;
+       
+//         int pitch = frame->pitch / 4; // pitch is in bytes; divide by 4 for Uint32
+// printf("Camera Frame Format: %s\n", SDL_GetPixelFormatName(frame->format));
+//         for (int y = 0; y < height; ++y) {
+//             for (int x = 0; x < width; ++x) {
+//                 Uint32 pixel = pixels[y * pitch + x];
+//                 Uint8 r, g, b, a;
+//                 SDL_GetRGBA(pixel, SDL_GetPixelFormatDetails(frame->format),0,&r, &g, &b,&a);
+//                 //printf("Pixel[%d][%d] = R:%d G:%d B:%d A:%d\n", y, x, r, g, b,a);
+//                // printf("%d \n",r);
+//             }
+
+//         }
+SDL_Surface* rgb_frame = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
+if (rgb_frame) {
+    Uint8* pixels = (Uint8*)rgb_frame->pixels;
+    int pitch = rgb_frame->pitch;
+    for (int y = 0; y < rgb_frame->h; y += 20) {
+        for (int x = 0; x < rgb_frame->w; x += 20) {
+            int index = y * pitch + x * 3;
+            Uint8 r = pixels[index];
+            Uint8 g = pixels[index + 1];
+            Uint8 b = pixels[index + 2];
+            
+
+          //  printf("Pixel[%d][%d] = R:%d G:%d B:%d\n", y, x, r, g, b);
+        }
+    }
+    SDL_DestroySurface(rgb_frame);  // Free when done
+}
+
+    // printf("Texture Properties:\n");
+    // printf("- Format: %d\n", format);
+    // printf("- Access: %d\n", access);
+    // printf("- Size: %dx%d\n", width, height);
+    // printf("- Colorspace: %d\n", colorspace);
+    // printf("- SDR White Point: %.2f\n", sdr_white);
+    // printf("- HDR Headroom: %.2f\n", hdr_headroom);
     //SDL_GetRGB();
+
+        SDL_ReleaseCameraFrame(app_state->camera, frame);
+    }
+        
+     SDL_SetRenderDrawColorFloat(app_state->renderer, 0.3f, 0.5f, 1.0f, SDL_ALPHA_OPAQUE_FLOAT);
+    SDL_RenderClear(app_state->renderer);
+
+
+
     
 //     SDL_Rect pixelRect;
 // pixelRect.x = 250;
@@ -174,3 +188,5 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     }
     free(app_state);
 }
+
+           
