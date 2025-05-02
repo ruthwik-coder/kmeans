@@ -7,7 +7,7 @@ LIB_DIR = C:\msys64\mingw64\lib
 
 # Compiler Flags
 CFLAGS = -I"$(INCLUDE_DIR)"
-LDFLAGS = -L"$(LIB_DIR)" -lmingw32 -lSDL3
+LDFLAGS = -L"$(LIB_DIR)" -lmingw32 -lSDL3 -lSDL3_ttf
 
 # Targets
 TARGETS = kmeans.exe sample.exe
