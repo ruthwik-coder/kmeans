@@ -16,7 +16,7 @@ typedef struct {
     SDL_Camera* camera;
     SDL_Texture* texture;
     
-    TTF_Font *font ;
+    //TTF_Font *font ;
   float cam_x, cam_y, cam_w, cam_h;
 bool dragging;
 float drag_offset_x, drag_offset_y;
@@ -31,12 +31,12 @@ int resize_margin = 10;
 
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
-      TTF_Init();
+    //   TTF_Init();
       
-       if (TTF_Init() < 0) {
-        printf("SDL_ttf could not initialize! TTF_Error: %s\n", SDL_GetError());
-        return SDL_APP_FAILURE;
-       }
+    //    if (TTF_Init() < 0) {
+    //     printf("SDL_ttf could not initialize! TTF_Error: %s\n", SDL_GetError());
+    //     return SDL_APP_FAILURE;
+    //    }
      
     AppState* app_state = malloc(sizeof(AppState));
     *app_state = (AppState){
@@ -44,16 +44,16 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
         .height = 600
     };
     *appstate = app_state;
- app_state->font= TTF_OpenFont(MY_FONT, 50);
+ //app_state->font= TTF_OpenFont(MY_FONT, 50);
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_CAMERA)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
-app_state->cam_w = app_state->width / 4.0f;
-app_state->cam_h = app_state->height / 4.0f;
-app_state->cam_x = 20.0f;
-app_state->cam_y = 20.0f;
-app_state->dragging = false;
+    app_state->cam_w = app_state->width / 4.0f;
+    app_state->cam_h = app_state->height / 4.0f;
+    app_state->cam_x = 20.0f;
+    app_state->cam_y = 20.0f;
+    app_state->dragging = false;
 
     if (!SDL_CreateWindowAndRenderer("SDL3 Camera Demo", app_state->width, app_state->height, 0, &(app_state->window), &(app_state->renderer))) {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
@@ -84,7 +84,27 @@ app_state->dragging = false;
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
     
-  
+             // Dynamically allocate memory for the 2D array using malloc
+   int **a = (int **)malloc(1280 * sizeof(int  *));  
+    
+     int **a2 = (int**)malloc(1280 * sizeof(int *));  
+    // Allocate memory for row pointers
+    if ((a == NULL) ||a2==NULL) {
+        printf("Memory allocation failed for rows!\n");
+        return 1;  // Return with an error code if memory allocation fails
+    }
+
+
+    // Allocate memory for each row
+    for (int i = 0; i < 1280; i++) {
+        a[i] = (int *)malloc(720 * sizeof(int));
+          a2[i] = (int *)malloc(720 * sizeof(int));
+        if ((a[i] == NULL) ||a2[i]==NULL) {
+            printf("Memory allocation failed for row %d!\n", i);
+            return 1;  // Return with an error code if memory allocation fails
+        }
+    }
+
       SDL_PropertiesID props;
     AppState* app_state = (AppState*)appstate;
     SDL_Surface* frame = SDL_AcquireCameraFrame(app_state->camera, NULL);
@@ -115,22 +135,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     int height = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0);
     int colorspace = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER, 0);
 
-
-
-//         Uint32* pixels = (Uint32*)frame->pixels;
-       
-//         int pitch = frame->pitch / 4; // pitch is in bytes; divide by 4 for Uint32
-// printf("Camera Frame Format: %s\n", SDL_GetPixelFormatName(frame->format));
-//         for (int y = 0; y < height; ++y) {
-//             for (int x = 0; x < width; ++x) {
-//                 Uint32 pixel = pixels[y * pitch + x];
-//                 Uint8 r, g, b, a;
-//                 SDL_GetRGBA(pixel, SDL_GetPixelFormatDetails(frame->format),0,&r, &g, &b,&a);
-//                 //printf("Pixel[%d][%d] = R:%d G:%d B:%d A:%d\n", y, x, r, g, b,a);
-//                // printf("%d \n",r);
-//             }
-
-//         }
 SDL_Surface* rgb_frame = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
 if (rgb_frame) {
     Uint8* pixels = (Uint8*)rgb_frame->pixels;
@@ -138,10 +142,12 @@ if (rgb_frame) {
     for (int y = 0; y < rgb_frame->h; y += 20) {
         for (int x = 0; x < rgb_frame->w; x += 20) {
             int index = y * pitch + x * 3;
+
             Uint8 r = pixels[index];
             Uint8 g = pixels[index + 1];
             Uint8 b = pixels[index + 2];
-            
+              a[y][x] = r;
+                a2[y][x] = g;
 
           // printf("Pixel[%d][%d] = R:%d G:%d B:%d\n", y, x, r, g, b);
         }
@@ -149,14 +155,6 @@ if (rgb_frame) {
     SDL_DestroySurface(rgb_frame);  // Free when done
 }
 
-    // printf("Texture Properties:\n");
-    // printf("- Format: %d\n", format);
-    // printf("- Access: %d\n", access);
-    // printf("- Size: %dx%d\n", width, height);
-    // printf("- Colorspace: %d\n", colorspace);
-    // printf("- SDR White Point: %.2f\n", sdr_white);
-    // printf("- HDR Headroom: %.2f\n", hdr_headroom);
-    //SDL_GetRGB();
 
         SDL_ReleaseCameraFrame(app_state->camera, frame);
     }
@@ -164,63 +162,28 @@ if (rgb_frame) {
      SDL_SetRenderDrawColorFloat(app_state->renderer, 0.3f, 0.5f, 1.0f, SDL_ALPHA_OPAQUE_FLOAT);
     SDL_RenderClear(app_state->renderer);
 
-
-//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,"lol", "lol",app_state->window);
-    
-//     SDL_Rect pixelRect;
-// pixelRect.x = 250;
-// pixelRect.y = 250;
-// pixelRect.w = 1;
-// pixelRect.h = 1;
-
-// SDL_Surface* pixelSurface = SDL_RenderReadPixels(app_state->renderer, &pixelRect);
-// if (pixelSurface != NULL)
-// {
-// 	Uint8 red;
-// 	Uint8 green;
-// 	Uint8 blue;
-	
-// 	Uint32 pixelValue = *((Uint32*) pixelSurface->pixels);
-// 	SDL_GetRGB(pixelValue, pixelSurface->format, NULL,&red, &green, &blue);
-// 	SDL_DestroySurface(pixelSurface);
-	
-// 	printf("Red: %d, Green: %d, Blue: %d\n", red, green, blue);
-// }
-
-//SDL_GetTextureProperties(app_state->texture);
-// Define the destination rect (smaller and in the corner)
 SDL_FRect camera_viewport_f = {
     .x = (float)camera_viewport.x,
     .y = (float)camera_viewport.y,
     .w = (float)camera_viewport.w,
     .h = (float)camera_viewport.h
 };
-SDL_FRect lol = {
-    .x = 450,
-    .y = 50,
-    .w =500,
-    .h = 500
-};
 
- SDL_SetRenderDrawColorFloat(app_state->renderer, 0.0f, 0.0f, 0.0f, SDL_ALPHA_OPAQUE_FLOAT);
+      SDL_RenderTexture(app_state->renderer,app_state->texture, NULL, &camera_viewport_f);
+
+// Render all points at once
+//SDL_RenderPoints(app_state->renderer, points, 100);
+    // Free the allocated memory
+    for (int i = 0; i < 1280; i++) {
+        free(a[i]);
+        free (a2[i]) ; // Free each row
+    }
+    
+    free(a); 
+    free(a2); // Free the row pointers
  
-SDL_RenderFillRect(app_state->renderer,  &lol);
-  SDL_Color textColor = {255, 255, 255, 255}; // black color
-  SDL_Surface* textSurface = TTF_RenderText_Solid(app_state->font, "boobs", 5, textColor);
-    SDL_Texture *textTexture = SDL_CreateTextureFromSurface(app_state->renderer, textSurface);     
-     SDL_RenderTexture(app_state->renderer, textTexture, NULL, &lol);
-     SDL_RenderTexture(app_state->renderer,app_state->texture, NULL, &camera_viewport_f);
-    //  char* f={
-    //  "llol","fef","qwqw","erer","tyty"
-    //  };
-    //  int i=5;
-    //  while(i-->0)
-    //  {
-
-    //     TTF_
-    //  }
     SDL_RenderPresent(app_state->renderer);
-     SDL_DestroySurface(textSurface);
+   //  SDL_DestroySurface(textSurface);
     return SDL_APP_CONTINUE;
 }
 
@@ -281,7 +244,7 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
         SDL_DestroyTexture(app_state->texture);
     }
 
-TTF_CloseFont(app_state->font);
+//TTF_CloseFont(app_state->font);
 
     free(app_state);
 }
