@@ -7,6 +7,7 @@
  #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "kmeans.h"
 #define MY_FONT "C:\\Windows\\Fonts\\arial.ttf"
 #define SDL_MESSAGEBOX_ERROR                    0x00000010u
 typedef struct {
@@ -112,7 +113,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
             SDL_SetWindowSize(app_state->window, frame->w, frame->h);
             app_state->width = frame->w;
             app_state->height = frame->h;
-            app_state->texture = SDL_CreateTexture(app_state->renderer, frame->format, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
+         //   app_state->texture = SDL_CreateTexture(app_state->renderer, frame->format, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
+ app_state->texture = SDL_CreateTexture(app_state->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
             if (app_state->texture == NULL) {
                 log_line_error(__func__, __LINE__);
             }
@@ -120,7 +122,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
             // Log point 1: Before updating texture
           //  SDL_Log("Point 1: Before updating texture - Error: %s", SDL_GetError());
             
-            SDL_UpdateTexture(app_state->texture, NULL, frame->pixels, frame->pitch);
+           // SDL_UpdateTexture(app_state->texture, NULL, frame->pixels, frame->pitch);
             
             // Log point 2: After updating texture
           //  SDL_Log("Point 2: After updating texture - Error: %s", SDL_GetError());
@@ -145,7 +147,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         int width = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0);
         int height = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0);
         int colorspace = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER, 0);
-
+       
         SDL_Surface* rgb_frame = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
        int a[17][30]; // You can reduce the array size if only storing every step
 int a2[17][30]; 
@@ -153,24 +155,28 @@ int a2[17][30];
 if (rgb_frame) {
     Uint8* pixels = (Uint8*)rgb_frame->pixels;
     int pitch = rgb_frame->pitch;
-    int step = 10; // Approximate step to get ~500 samples
+    int step = 1; // Approximate step to get ~500 samples
 
     for (int y = 0; y < rgb_frame->h; y += step) { 
         for (int x = 0; x < rgb_frame->w; x += step) { 
-            int index = y * pitch + x * 3;
+            int index = y * pitch + x * 3  ;
             Uint8 r = pixels[index];
             Uint8 g = pixels[index + 1];
             Uint8 b = pixels[index + 2];
            // printf("Pixel[%d][%d] = R:%d G:%d B:%d\n", y, x, r, g, b);
-
+    // Invert colors
+            pixels[index] = 255-pixels[index]  ;// Red
+           pixels[index + 1] =255-pixels[index+1];  // Green
+           pixels[index + 1] = 255-pixels[index+2];   // Blue
            //a[y/43][x/43] = r; 
             //a2[y/43][x/43] = g; 
  SDL_SetRenderDrawColor(app_state->renderer, r, g, b, SDL_ALPHA_OPAQUE_FLOAT);
-           SDL_RenderPoint(app_state->renderer,450+1*(float)r,450+1*(float)b);
+          // SDL_RenderPoint(app_state->renderer,450+1*(float)r,450+1*(float)b);
            
            //  printf("R:%d G:%d \n", r, g);
         }
     }
+     SDL_UpdateTexture(app_state->texture, NULL, rgb_frame->pixels, rgb_frame->pitch);
  SDL_RenderPresent(app_state->renderer);
     SDL_DestroySurface(rgb_frame);
 }
