@@ -12,13 +12,13 @@
 /*CURRENT VERSION WORKS WITHOUT HEADER FILES AND FUNCTIONS, IT'S WRITTEN THIS WAY
 FOR EASE OF USING AND READING OF RAW CODE*/
 
-int* kmeans2(float arr[],unsigned int K,int N){
+int main(int argc, char const **argv) {
 
     /* Starting Variables */
-    //int N = -1; /*Size of data|| Initializing at -1 because our finder always count the last \n*/
-    //unsigned int K = 0; /* Amount of clusters to be created,input given by the user */
-    unsigned int D = 3; /* Number of features(dimensions) */
-    srand(time(NULL));/*True Random*/
+    int N = -1; /*Size of data|| Initializing at -1 because our finder always count the last \n*/
+    unsigned int K = 0; /* Amount of clusters to be created,input given by the user */
+    unsigned int D = 0; /* Number of features(dimensions) */
+  //  srand(time(NULL));/*True Random*/
     unsigned int randVar = 0;/*Variable for picking random initial Centroids*/
     unsigned int iteration = 0;/*Amount of algorithm's iterations counter*/
     int flagEnd = 0;/*Initializing flag variable for do-while break*/
@@ -76,13 +76,13 @@ int* kmeans2(float arr[],unsigned int K,int N){
 
     int flag = 0;/*temp flag */
     int flagPrev = 0;/*Holder of previous iteration's flag */
-    int counter = 0;/*switching between 0-1,necessary for the loop bellow*/
-    char c;/*Temp char for file scaning*/
+    //int counter = 0;/*switching between 0-1,necessary for the loop bellow*/
+    // char c;/*Temp char for file scaning*/
 
-    /*It increases D by 1 everytime counter == 0 and flagPrev != flag,the way
-     it works is by checking first's row characters one by one, if it's a number(0-9),
-     operation sign(+,-) or a dot(.) the sets flags = 1 and increases counter by 1.
-     If it's something else(space( ),tab(\t),comma(,) etc) sets both to zero.
+    // /*It increases D by 1 everytime counter == 0 and flagPrev != flag,the way
+    //  it works is by checking first's row characters one by one, if it's a number(0-9),
+    //  operation sign(+,-) or a dot(.) the sets flags = 1 and increases counter by 1.
+    //  If it's something else(space( ),tab(\t),comma(,) etc) sets both to zero.
     //  With the correct combination D increases by 1 every time we pass through a new feature*/
     //  while(c != '\n')
     //   {
@@ -112,30 +112,30 @@ int* kmeans2(float arr[],unsigned int K,int N){
     //           ++N;
     //     }
     // rewind(Dataset);/* sets the pointer at the begining of the file*/
-        /*-----------------------------*/
-    /*---Printing size of Data and number of features(speaks for itself though)---*/
-   // printf("\n Size of Data : %d\n",N);
-    //printf("\n Number of features : %d\n",D);
+    //     /*-----------------------------*/
+    // /*---Printing size of Data and number of features(speaks for itself though)---*/
+    // printf("\n Size of Data : %d\n",N);
+    // printf("\n Number of features : %d\n",D);
 
-    /*---Getting K from user----*/
+    // /*---Getting K from user----*/
 
-    /*Asking the user to give the amount of clusters */
-   // printf("\n Give Clusters(k > 0 required) : ");
-    //scanf("%d",&K);
-    //printf("\n");
+    // /*Asking the user to give the amount of clusters */
+    // printf("\n Give Clusters(k > 0 required) : ");
+    // scanf("%d",&K);
+    // printf("\n");
 
-    /* Error check statement,cant run with K <= 0 */
-    if(K <= 0)
-    {
-      printf("\n Can't be executed with K = %d!(k > 0 required)\n",K);
-      printf("\n Program has been terminated\n\n");
-    //  return -2;
-    }
+    // /* Error check statement,cant run with K <= 0 */
+    // if(K <= 0)
+    // {
+    //   printf("\n Can't be executed with K = %d!(k > 0 required)\n",K);
+    //   printf("\n Program has been terminated\n\n");
+    //   return -2;
+    // }
     /*-----------------------------*/
 
     /*------Memory Allocation-----*/
-    float *DataArray;//Main Array for loading the initial Data
-    DataArray = (float*)calloc(N*D,sizeof(float));/*Allocating space for N(rows) * D(features) */
+    // float *DataArray;//Main Array for loading the initial Data
+    // DataArray = (float*)calloc(N*D,sizeof(float));/*Allocating space for N(rows) * D(features) */
 
     float *Centroids;/*Array holding Centroids throughout the execution of the algorithm*/
     Centroids = (float*)calloc(K*D,sizeof(float));/*Allocating space for K(clusters) * D(features) */
@@ -162,27 +162,75 @@ int* kmeans2(float arr[],unsigned int K,int N){
     /*--------------------------*/
 
     /*---------Loading Data---------*/
-    for(i = 0; i < N; ++i)
-    {
-      for(d = 0; d < D; ++d)
-       DataArray[i*D + d]=arr[i*D+d];
-    }
-    free(arr);
+    // for(i = 0; i < N; ++i)
+    // {
+    //   for(d = 0; d < D; ++d)
+    //    // fscanf(Dataset,"%f,",&DataArray[i*D + d]);/*"%f," is c undefined behaviour */
+
+    // }
     //fclose(Dataset);//Closing the initial Data File
     /*--------------------------*/
 
     /*--------Generating Initial Random Centroids-----*/
-    for(j = 0; j < K; ++j)
-    {
-      randVar = rand() % N;//Getting a different rand for every Centroid
-      for(d = 0; d < D; ++d)
-      {
-        //Picking a random Element each iteration till < K for Centroid
-        Centroids[j*D + d] = DataArray[randVar*D + d];
-        //Copy Centroids[] to FlagCentroids[]
-        FlagCentroids[j*D + d] = Centroids[j*D + d];
-      }
+    // --- k-means++ initialization ---
+Centroids[0*D + 0] = DataArray[0*D + 0];
+for (d = 1; d < D; ++d)
+    Centroids[0*D + d] = DataArray[0*D + d];
+
+// Array to store the minimum squared distance to any centroid so far
+float *minDistSq = (float*)calloc(N, sizeof(float));
+if (!minDistSq) { printf("Memory error\n"); exit(1); }
+
+for (i = 0; i < N; ++i) {
+    float dist = 0.0;
+    for (d = 0; d < D; ++d)
+        dist += (DataArray[i*D + d] - Centroids[0*D + d]) * (DataArray[i*D + d] - Centroids[0*D + d]);
+    minDistSq[i] = dist;
+}
+
+// Select the rest K-1 centroids
+for (j = 1; j < K; ++j) {
+    // 1. Compute total of minDistSq
+    float total = 0.0;
+    for (i = 0; i < N; ++i)
+        total += minDistSq[i];
+
+    // 2. Pick a random value in [0, total)
+    float r = ((float)rand() / RAND_MAX) * total;
+
+    // 3. Find the data point at or just above this value
+    float cumSum = 0.0;
+    int nextCentroid = N-1; // fallback
+    for (i = 0; i < N; ++i) {
+        cumSum += minDistSq[i];
+        if (cumSum >= r) {
+            nextCentroid = i;
+            break;
+        }
     }
+
+    // 4. Assign this as the next centroid
+    for (d = 0; d < D; ++d)
+        Centroids[j*D + d] = DataArray[nextCentroid*D + d];
+
+    // 5. Update minDistSq for all points
+    for (i = 0; i < N; ++i) {
+        float dist = 0.0;
+        for (d = 0; d < D; ++d)
+            dist += (DataArray[i*D + d] - Centroids[j*D + d]) * (DataArray[i*D + d] - Centroids[j*D + d]);
+        if (dist < minDistSq[i])
+            minDistSq[i] = dist;
+    }
+}
+
+// Copy Centroids to FlagCentroids
+for (j = 0; j < K; ++j)
+    for (d = 0; d < D; ++d)
+        FlagCentroids[j*D + d] = Centroids[j*D + d];
+
+free(minDistSq);
+// --- end k-means++ initialization ---
+
       /*--------------------------*/
 
 start = clock();
@@ -326,8 +374,8 @@ breaks the do-while loop */
     // }
 
 
-
-
+for(int i=0;i<N;i++)
+  printf("%d ",Location[i]);
     free(DataArray);
     free(Centroids);
     free(FlagCentroids);
@@ -335,12 +383,8 @@ breaks the do-while loop */
     free(ClusterTotalSum);
     free(Distance);
     free(Min);
-    
-    return Location;
-
-    
     free(Location);
-    // free(OutputArray);
+   // free(OutputArray);
 
   return 0;
 }

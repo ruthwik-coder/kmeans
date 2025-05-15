@@ -9,40 +9,66 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 */
+// #include <SDL3/SDL.h> // Uncomment if using SDL
 #include <stdio.h>
-#include "kmeans.h"
-int main()
-{
+#include <stdlib.h>  // Needed for calloc
+#include "test.h"
 
- float points[60] = {
-    79.000000 ,63.000000, 16.000000,
-    45.000000, 22.000000, 14.000000,
-    13.000000 ,21.000000, 96.000000,
-    39.000000 ,77.000000, 55.000000,
-    39.000000 ,47.000000, 9.000000,
-    61.000000 ,89.000000, 80.000000,
-    43.000000 ,73.000000, 30.000000,
-    59.000000 ,47.000000, 94.000000,
-    76.000000 ,76.000000, 99.000000,
-    88.000000 ,21.000000, 27.000000,
-    67.000000 ,53.000000, 43.000000,
-    35.000000 ,50.000000, 17.000000,
-    1.000000 ,63.000000 ,39.000000,
-    98.000000 ,55.000000, 68.000000,
-    5.000000 ,46.000000 ,16.000000,
-    14.000000, 7.000000 ,57.000000,
-    47.000000, 50.000000 ,30.000000,
-    29.000000, 62.000000 ,77.000000,
-    23.000000, 38.000000 ,6.000000,
-    22.000000, 26.000000, 79.000000
-    
-    };
-    int* ar = kmeans2(points, 2, 20);  // assuming kmeans2 returns int* of size 20
+#define N 20
+#define D 3
+#define K 2
 
-    printf("Cluster assignments:\n");
-    for (int i = 0; i < 20; i++) {
-        printf("%d ", ar[i]);
+int main() {
+    //  int N = 20; /*Size of data|| Initializing at -1 because our finder always count the last \n*/
+    // unsigned int K = 2; /* Amount of clusters to be created,input given by the user */
+    // unsigned int D = 3; 
+    // Allocate space for N (rows) * D (features)
+    float *DataArray = (float*)calloc(N * D, sizeof(float));
+int *Location = (int*)calloc(N+(D*K) , sizeof(int));
+    if (DataArray == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return 1;
     }
-    printf("\n");
 
+    // Initialize data manually (as you had 20x3 values)
+    float initData[N * D] = {
+       100 ,100,100,
+       100 ,100,100,
+       100 ,100,100,
+       100 ,100,100,
+       100 ,100,100,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+       200,200,200,
+
+    };
+
+    // Copy initData into allocated memory
+    for (int i = 0; i < N * D; ++i) {
+        DataArray[i] = initData[i];
+    }
+
+    // Call clustering function
+      Location=kmeans2(DataArray,Location,N,D,K);  // Make sure this function is correctly defined in test.h
+
+    // Free memory
+    free(DataArray);
+    for(int i=0;i<N;i++)
+  printf("%d ",Location[i]);
+  for(int i=N;i<N+(K*D);i++)
+  printf("centroidds: %d",Location[i]);
+ free(Location);
+    return 0;
 }

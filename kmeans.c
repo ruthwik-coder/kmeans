@@ -151,7 +151,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         SDL_Surface* rgb_frame = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
        int a[17][30]; // You can reduce the array size if only storing every step
 int a2[17][30]; 
-
+//3840 is the pitch
 if (rgb_frame) {
     Uint8* pixels = (Uint8*)rgb_frame->pixels;
     int pitch = rgb_frame->pitch;
@@ -164,10 +164,10 @@ if (rgb_frame) {
             Uint8 g = pixels[index + 1];
             Uint8 b = pixels[index + 2];
            // printf("Pixel[%d][%d] = R:%d G:%d B:%d\n", y, x, r, g, b);
-    // Invert colors
+    // // Invert colors
             pixels[index] = 255-pixels[index]  ;// Red
            pixels[index + 1] =255-pixels[index+1];  // Green
-           pixels[index + 1] = 255-pixels[index+2];   // Blue
+           pixels[index + 2] = 255-pixels[index+2];   // Blue
            //a[y/43][x/43] = r; 
             //a2[y/43][x/43] = g; 
  SDL_SetRenderDrawColor(app_state->renderer, r, g, b, SDL_ALPHA_OPAQUE_FLOAT);
@@ -176,6 +176,7 @@ if (rgb_frame) {
            //  printf("R:%d G:%d \n", r, g);
         }
     }
+    //rgb_frame->pixels=calculatingthekmeans(rgb_frame->pixels);
      SDL_UpdateTexture(app_state->texture, NULL, rgb_frame->pixels, rgb_frame->pitch);
  SDL_RenderPresent(app_state->renderer);
     SDL_DestroySurface(rgb_frame);
