@@ -1,390 +1,257 @@
+#ifdef _MSC_VER
+   #define _CRT_SECURE_NO_WARNINGS
+#endif
+#define SDL_MAIN_USE_CALLBACKS 1
+ #include <SDL3/SDL.h>
+ #include <SDL3/SDL_main.h>
+ #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
-#include <math.h>
 #include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
-#include <string.h>
+#include "kmeans.h"
+#define MY_FONT "C:\\Windows\\Fonts\\arial.ttf"
+#define SDL_MESSAGEBOX_ERROR                    0x00000010u
+#define N 1280*720
+#define D 3
+#define K 2
+typedef struct {
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    SDL_CameraID* devices;
+    SDL_Camera* camera;
+    SDL_Texture* texture;
 
-#define MAX_SIZE 100
-#define FLAG_MAX 9999
-#define PREVIOUS_FILES 100
-/*Sorry for Caps */
-/*CURRENT VERSION WORKS WITHOUT HEADER FILES AND FUNCTIONS, IT'S WRITTEN THIS WAY
-FOR EASE OF USING AND READING OF RAW CODE*/
+  float cam_x, cam_y, cam_w, cam_h;
+bool dragging;
+float drag_offset_x, drag_offset_y;
 
-int main(int argc, char const **argv) {
-
-    /* Starting Variables */
-    int N = -1; /*Size of data|| Initializing at -1 because our finder always count the last \n*/
-    unsigned int K = 0; /* Amount of clusters to be created,input given by the user */
-    unsigned int D = 0; /* Number of features(dimensions) */
-  //  srand(time(NULL));/*True Random*/
-    unsigned int randVar = 0;/*Variable for picking random initial Centroids*/
-    unsigned int iteration = 0;/*Amount of algorithm's iterations counter*/
-    int flagEnd = 0;/*Initializing flag variable for do-while break*/
-    clock_t start, end; //Timers
-
-    /*(loop var) i is used for N, j is used for K,d is used for D */
-    register int i; //Elements
-    register int j; //Clusters
-    register int d; //Features
-
-    // /*-----------------------------*/
-    // char filename[MAX_SIZE];/* Holder for Dataset Filename */
-    // unsigned int choise = 0; /*Flag variable for filename(given by the user) error check */
-    // /*-----------------------------*/
-
-    // FILE *Dataset; /*Stating Dataset file Variable */
-
-    // /* Asking Data File from user */
-    // printf("\n Input Dataset filename : ");
-    // scanf("%s",filename);
-    // printf("\n");
-    // /*------------Filename Error Check-----------------*/
-    // /*access function checks if the file exists,if we get -1 it means it doesnt exists*/
-    // if(access(filename, F_OK) == -1)
-    // {
-    //  /*Informs the user about the error with the filename and initiates the loop */
-    //   printf(" There is something wrong with the File\n");
-    //   while(choise == 0)
-    //   {
-    //     printf("\n Input New File(Type 0 to Exit): ");
-    //     scanf("%s",filename);
-    //     printf("\n");
-    //     if(strcmp(filename,"0") == 0)/*If users types 0 at 2nd attempt exits program*/
-    //       {
-    //         printf("\n Program has been terminated\n\n");
-    //         return -1;
-    //       }else if(access(filename, F_OK) == -1)/* >2 attempt asking till user types correctly or press 0 to exit*/
-    //       {
-    //         choise = 0;/*Continue with the asking filename loop*/
-    //       }else
-    //       {
-    //         choise = 1;/*User typed the correct file and breaks while-loop normally*/
-    //       }
-    //   }
+    int width;
+    int height;
+    int camera_count;
+} AppState ;
+SDL_Rect camera_viewport = {20, 20, 320, 240}; // Initial small position/size
+bool resizing = false;
+int resize_margin = 10;
 
 
-    // }
-    // /*-----------------------------*/
-    // /*Opening the file after error checking */
-    // Dataset = fopen(filename,"r");
+SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 
+     
+    AppState* app_state = malloc(sizeof(AppState));
+    *app_state = (AppState){
+        .width = 800,
+        .height = 600
+    };
+    *appstate = app_state;
 
-    // /*------------Finding the number of features from the dataset -----------------*/
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_CAMERA)) {
+        SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+    app_state->cam_w = app_state->width / 4.0f;
+    app_state->cam_h = app_state->height / 4.0f;
+    app_state->cam_x = 20.0f;
+    app_state->cam_y = 20.0f;
+    app_state->dragging = false;
 
-
-    int flag = 0;/*temp flag */
-    int flagPrev = 0;/*Holder of previous iteration's flag */
-    //int counter = 0;/*switching between 0-1,necessary for the loop bellow*/
-    // char c;/*Temp char for file scaning*/
-
-    // /*It increases D by 1 everytime counter == 0 and flagPrev != flag,the way
-    //  it works is by checking first's row characters one by one, if it's a number(0-9),
-    //  operation sign(+,-) or a dot(.) the sets flags = 1 and increases counter by 1.
-    //  If it's something else(space( ),tab(\t),comma(,) etc) sets both to zero.
-    //  With the correct combination D increases by 1 every time we pass through a new feature*/
-    //  while(c != '\n')
-    //   {
-    //     fscanf(Dataset, "%c", &c);
-    //     if((c >= '0' && c <= '9') ||( c == '-' || c == '+' ) || (c == '.' ))
-    //     {
-    //        flag = 1;
-    //        counter++;
-    //     } else
-    //     {
-    //        flag = 0;
-    //        counter = 0;
-    //     }
-    //     if(counter == 0 && flagPrev != flag)
-    //     {
-    //        ++D;
-    //     }
-    //     flagPrev = flag;
-    //   }
-    //   rewind(Dataset);/* sets the pointer at the begining of the file*/
-
-    // /*----------Finding the number of elements-------------------*/
-    // while(!feof(Dataset))
-    //     {
-    //        fscanf(Dataset,"%c",&c);
-    //        if(c == '\n')
-    //           ++N;
-    //     }
-    // rewind(Dataset);/* sets the pointer at the begining of the file*/
-    //     /*-----------------------------*/
-    // /*---Printing size of Data and number of features(speaks for itself though)---*/
-    // printf("\n Size of Data : %d\n",N);
-    // printf("\n Number of features : %d\n",D);
-
-    // /*---Getting K from user----*/
-
-    // /*Asking the user to give the amount of clusters */
-    // printf("\n Give Clusters(k > 0 required) : ");
-    // scanf("%d",&K);
-    // printf("\n");
-
-    // /* Error check statement,cant run with K <= 0 */
-    // if(K <= 0)
-    // {
-    //   printf("\n Can't be executed with K = %d!(k > 0 required)\n",K);
-    //   printf("\n Program has been terminated\n\n");
-    //   return -2;
-    // }
-    /*-----------------------------*/
-
-    /*------Memory Allocation-----*/
-    // float *DataArray;//Main Array for loading the initial Data
-    // DataArray = (float*)calloc(N*D,sizeof(float));/*Allocating space for N(rows) * D(features) */
-
-    float *Centroids;/*Array holding Centroids throughout the execution of the algorithm*/
-    Centroids = (float*)calloc(K*D,sizeof(float));/*Allocating space for K(clusters) * D(features) */
-
-    float *FlagCentroids;/*Array for holding Centroids of a previous iteration,used in loop testing */
-    FlagCentroids = (float*)calloc(K*D,sizeof(float));/*Same allocation as line:120*/
-
-    int *Counter;/*Array for holding the counter about how many elements each cluster has */
-    Counter = (int*)calloc(K,sizeof(int));/*Allocating space the same as K(clusters)*/
-
-    float *ClusterTotalSum;/*Array for holding the total sum of each cluster*/
-    ClusterTotalSum = (float*)calloc(K*D,sizeof(float));/*Allocating space for K(rows) and D(features)*/
-
-    float *Distance;/*Array for holding the distance between each element from each Centroid*/
-    Distance = (float*)calloc(N*K,sizeof(float));/*Allocating space for N(elements) * K(Centroids)*/
-
-    float *Min;/*Array for holding the min Distance*/
-    Min = (float*)calloc(N,sizeof(float));
-
-    int *Location;/*Array holding each element's location(cluster)*/
-    Location = (int*)calloc(N,sizeof(int));
-
-
-    /*--------------------------*/
-
-    /*---------Loading Data---------*/
-    // for(i = 0; i < N; ++i)
-    // {
-    //   for(d = 0; d < D; ++d)
-    //    // fscanf(Dataset,"%f,",&DataArray[i*D + d]);/*"%f," is c undefined behaviour */
-
-    // }
-    //fclose(Dataset);//Closing the initial Data File
-    /*--------------------------*/
-
-    /*--------Generating Initial Random Centroids-----*/
-    // --- k-means++ initialization ---
-Centroids[0*D + 0] = DataArray[0*D + 0];
-for (d = 1; d < D; ++d)
-    Centroids[0*D + d] = DataArray[0*D + d];
-
-// Array to store the minimum squared distance to any centroid so far
-float *minDistSq = (float*)calloc(N, sizeof(float));
-if (!minDistSq) { printf("Memory error\n"); exit(1); }
-
-for (i = 0; i < N; ++i) {
-    float dist = 0.0;
-    for (d = 0; d < D; ++d)
-        dist += (DataArray[i*D + d] - Centroids[0*D + d]) * (DataArray[i*D + d] - Centroids[0*D + d]);
-    minDistSq[i] = dist;
-}
-
-// Select the rest K-1 centroids
-for (j = 1; j < K; ++j) {
-    // 1. Compute total of minDistSq
-    float total = 0.0;
-    for (i = 0; i < N; ++i)
-        total += minDistSq[i];
-
-    // 2. Pick a random value in [0, total)
-    float r = ((float)rand() / RAND_MAX) * total;
-
-    // 3. Find the data point at or just above this value
-    float cumSum = 0.0;
-    int nextCentroid = N-1; // fallback
-    for (i = 0; i < N; ++i) {
-        cumSum += minDistSq[i];
-        if (cumSum >= r) {
-            nextCentroid = i;
-            break;
-        }
+    if (!SDL_CreateWindowAndRenderer("SDL3 Camera Demo", app_state->width, app_state->height, 0, &(app_state->window), &(app_state->renderer))) {
+        SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
 
-    // 4. Assign this as the next centroid
-    for (d = 0; d < D; ++d)
-        Centroids[j*D + d] = DataArray[nextCentroid*D + d];
+    SDL_CameraID* devices = SDL_GetCameras(&app_state->camera_count);
+    app_state->devices = devices;
 
-    // 5. Update minDistSq for all points
-    for (i = 0; i < N; ++i) {
-        float dist = 0.0;
-        for (d = 0; d < D; ++d)
-            dist += (DataArray[i*D + d] - Centroids[j*D + d]) * (DataArray[i*D + d] - Centroids[j*D + d]);
-        if (dist < minDistSq[i])
-            minDistSq[i] = dist;
+    SDL_Log("Found %d cameras!", app_state->camera_count);
+
+    // Open first camera
+    app_state->camera = SDL_OpenCamera(devices[0], NULL);
+    if (app_state->camera == NULL) {
+        SDL_Log("Can't open the selected camera: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
+
+    // Get the selected camera format
+    SDL_CameraSpec spec;
+    SDL_GetCameraFormat(app_state->camera, &spec);
+    int FPS = spec.framerate_numerator / spec.framerate_denominator;
+    SDL_Log("Got a camera of %dx%d and FPS %d", spec.width, spec.height, FPS);
+
+    return SDL_APP_CONTINUE;
 }
 
-// Copy Centroids to FlagCentroids
-for (j = 0; j < K; ++j)
-    for (d = 0; d < D; ++d)
-        FlagCentroids[j*D + d] = Centroids[j*D + d];
+// Add this function to help with precise error tracking
+void log_line_error(const char* function_name, int line_number) {
+    printf("Error at %s (line %d): %s\n", function_name, line_number, SDL_GetError());
+}
 
-free(minDistSq);
-// --- end k-means++ initialization ---
-
-      /*--------------------------*/
-
-start = clock();
-  /*--Initializing the algoritm---*/
-    do {
-
-      /*For every iteration after the initial one resets the counter and sums to 0*/
-      if(iteration > 0)
-      {
-        for(j = 0; j < K; ++j)
-        {
-          Counter[j] = 0;//Resets counter array to 0
-          for(d = 0; d < D; ++d)
-          {
-            ClusterTotalSum[j*D + d] = 0;//Resets Sum of each cluster to 0
-          }
-        }
-      }
-
-      for(i = 0; i < N; ++i)
-      {
-        Min[i] = FLAG_MAX;
-        for(j = 0; j < K; ++j)
-        {
-          Distance[i*K + j] = 0;/*Reseting Distance at every iteration to 0 to calculate new ones */
-          for(d = 0; d < D; ++d)
-          {
-            /*Calculating distance for each element from each centroid by using sqrt(pow((x-y),2))*/
-            Distance[i*K + j] +=((DataArray[i*D + d] - Centroids[j*D + d])*(DataArray[i*D + d] - Centroids[j*D + d]));
-          }
-          Distance[i*K + j] = sqrt(Distance[i*K + j]);/*Getting the sqrt of the total features distance*/
-
-         /*Everytime it finds a distance Smaller than previous it stores it's cluster location*/
-          if(Distance[i*K + j] < Min[i])
-          {
-            Min[i] = Distance[i*K + j];
-            Location[i] = j;
-          }
-        }
-  /*For every element's  j(current Cluster)==location add it to Cluster's total sum
-  and increase counter by 1 for the corresponding cluster */
-        for(j = 0; j < K; ++j)
-        {
-          if(Location[i] == j)
-          {
-            for(d = 0; d < D; ++d)
-            {
-              ClusterTotalSum[j*D + d] += DataArray[i*D + d];
+// Then in SDL_AppIterate, add specific logging without changing your code
+SDL_AppResult SDL_AppIterate(void* appstate) {
+    AppState* app_state = (AppState*)appstate;
+  
+    SDL_Surface* frame = SDL_AcquireCameraFrame(app_state->camera, NULL);
+    if (frame != NULL) {
+        if (app_state->texture == NULL) {
+            SDL_Log("Creating new texture %dx%d", frame->w, frame->h);
+            SDL_SetWindowSize(app_state->window, frame->w, frame->h);
+            app_state->width = frame->w;
+            app_state->height = frame->h;
+         //   app_state->texture = SDL_CreateTexture(app_state->renderer, frame->format, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
+ app_state->texture = SDL_CreateTexture(app_state->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
+            if (app_state->texture == NULL) {
+                log_line_error(__func__, __LINE__);
             }
-            ++Counter[j];
-          }
-        }
-      }
-
- /*Calculate new Centroids by dividing each feature sum with Counter */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
-        {
-          Centroids[j*D + d] = ClusterTotalSum[j*D +d]/Counter[j];
-        }
-      }
-
-/*If even one feature of flag is different than the equal to Centroids
-it set's flagEnd to 0 and breaks the nested for loop and follows with an if to
-break the parent for loop. If all features are equal then set flagEnd to -1 which
-breaks the do-while loop */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
-        {
-          if(FlagCentroids[j*D + d] != Centroids[j*D + d])
-          {
-            flagEnd = 0;
-             break;
-          }else
-          {
-            flagEnd = -1;
-          }
-          
+        } else {
+            SDL_Log("Point 2: After updating texture - Error: %s", SDL_GetError());
         }
 
-        if(flagEnd == 0)
-          break;
-      }
-
-
-/*Copy new Centroids to FlagCentroids */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
-        {
-          FlagCentroids[j*D + d] = Centroids[j*D + d];
+        
+        SDL_PropertiesID props = SDL_GetTextureProperties(app_state->texture);
+        
+       
+        
+        if (props == 0) {
+            printf("Failed to get texture properties: %s\n", SDL_GetError());
+            return SDL_APP_FAILURE;
         }
-      }
+        
+        // Access texture properties
+        int format = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_FORMAT_NUMBER, 0);
+        int access = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_ACCESS_NUMBER, 0);
+        int width = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0);
+        int height = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0);
+        int colorspace = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER, 0);
+       
+        SDL_Surface* rgb_frame = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
+   
+//3840 is the pitch
+if (rgb_frame) {
+    int *Location = (int*)calloc(N+(D*K) , sizeof(int));
+    Uint8* pixels = (Uint8*)rgb_frame->pixels;
+   // printf("%d \n",sizeof(rgb_frame->pixels));
+    int pitch = rgb_frame->pitch;
+    int step = 1; // Approximate step to get ~500 samples
+          Location=kmeans2(pixels,Location,N,D,K);  // Make sure this function is correctly defined in test.h
 
-      ++iteration;
+    for (int y = 0; y < rgb_frame->h; y += step) {  //720
+        for (int x = 0; x < rgb_frame->w; x += step) { //1280
 
-    } while(flagEnd != -1);
+      
 
-    end = clock();
+int pixel_index = y * pitch + x * 3; // 3 for RGB24
+        int idx = y * rgb_frame->w + x; // Flattened pixel index (0..N-1)
 
-    printf("\n Iterations : %d\n",iteration );
-    double total_time = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("\n Time of Algorithm Execution: %lf \n\n",total_time);
+        int cluster = Location[idx]; // 0..K-1
 
-    // FILE **OutputArray;
-    // OutputArray = calloc(K,sizeof(FILE*));
-    // char fileName[MAX_SIZE];
+        // Get centroid color from Location array
+        int centroid_base = N + cluster * D;
+        Uint8 r = (Uint8)Location[centroid_base + 0];
+        Uint8 g = (Uint8)Location[centroid_base + 1];
+        Uint8 b = (Uint8)Location[centroid_base + 2];
 
-    // for(j = 0; j < K; ++j)
-    // {
-    //   sprintf(fileName,"Cluster_%d.txt",j);
-    //   OutputArray[j] = fopen(fileName,"w");
-    // }
+        // Set pixel to centroid color
+        pixels[pixel_index + 0] = r;
+        pixels[pixel_index + 1] = g;
+        pixels[pixel_index + 2] = b;
 
-    // for(j = 0; j < K; ++j)
-    // {
-    //   for(i = 0; i < N; ++i)
-    //   {
-    //     if(Location[i] == j)
-    //     {
-    //       for(d = 0; d < D; ++d)
-    //       {
-    //         fprintf(OutputArray[j],"%f ",DataArray[i*D + d]);
-    //       }
-    //       fprintf(OutputArray[j],"\n");
-    //     }
-    //   }
-    // }
-
-    // for(j = 0; j < K; ++j)
-    // {
-    //   fclose(OutputArray[j]);
-    // }
-
-    // for(j = PREVIOUS_FILES; j >= K; --j)
-    // {
-    //   sprintf(fileName,"Cluster_%d.txt",j);
-    //   remove(fileName);
-    // }
+        }
+   
+    }
+free(Location);
 
 
-for(int i=0;i<N;i++)
-  printf("%d ",Location[i]);
-    free(DataArray);
-    free(Centroids);
-    free(FlagCentroids);
-    free(Counter);
-    free(ClusterTotalSum);
-    free(Distance);
-    free(Min);
-    free(Location);
-   // free(OutputArray);
-
-  return 0;
+    
+     SDL_UpdateTexture(app_state->texture, NULL, rgb_frame->pixels, rgb_frame->pitch);
+ SDL_RenderPresent(app_state->renderer);
+    SDL_DestroySurface(rgb_frame);
 }
+
+
+        SDL_ReleaseCameraFrame(app_state->camera, frame);
+    } else {
+        return SDL_APP_CONTINUE;
+        log_line_error(__func__, __LINE__);
+       
+    }
+    
+    SDL_SetRenderDrawColorFloat(app_state->renderer, 0.3f, 0.5f, 1.0f, SDL_ALPHA_OPAQUE_FLOAT);
+    SDL_RenderClear(app_state->renderer);
+
+    SDL_FRect camera_viewport_f = {
+        .x = (float)camera_viewport.x,
+        .y = (float)camera_viewport.y,
+        .w = (float)camera_viewport.w,
+        .h = (float)camera_viewport.h
+    };
+
+    // Log point 5: Before rendering texture
+   // SDL_Log("Point 5: Before rendering texture - Error: %s", SDL_GetError());
+    
+    SDL_RenderTexture(app_state->renderer, app_state->texture, NULL, &camera_viewport_f);
+
+    SDL_RenderPresent(app_state->renderer);
+    
+    return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
+    if (event->type == SDL_EVENT_QUIT) {
+        return SDL_APP_SUCCESS;
+    }
+
+    static bool mouse_down = false;
+
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        int mx = event->button.x;
+        int my = event->button.y;
+        // Check if mouse is near the bottom-right corner of the camera rectangle
+        if (mx >= camera_viewport.x + camera_viewport.w - resize_margin &&
+            mx <= camera_viewport.x + camera_viewport.w &&
+            my >= camera_viewport.y + camera_viewport.h - resize_margin &&
+            my <= camera_viewport.y + camera_viewport.h) {
+            resizing = true;
+        }
+        mouse_down = true;
+    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
+        resizing = false;
+        mouse_down = false;
+    } else if (event->type == SDL_EVENT_MOUSE_MOTION) {
+        int mx = event->motion.x;
+        int my = event->motion.y;
+
+        // Change cursor when near the resize edge
+        if (mx >= camera_viewport.x + camera_viewport.w - resize_margin &&
+            mx <= camera_viewport.x + camera_viewport.w &&
+            my >= camera_viewport.y + camera_viewport.h - resize_margin &&
+            my <= camera_viewport.y + camera_viewport.h) {
+            SDL_SetCursor(SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_NWSE_RESIZE));
+        } else {
+            SDL_SetCursor(SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT));
+        }
+
+        if (resizing && mouse_down) {
+            camera_viewport.w = mx - camera_viewport.x;
+            camera_viewport.h = my - camera_viewport.y;
+        }
+    }
+
+
+    return SDL_APP_CONTINUE;
+}
+
+
+void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    AppState* app_state = (AppState*)appstate;
+    if (app_state->devices != NULL) {
+        SDL_free(app_state->devices);
+    }
+    if (app_state->camera != NULL) {
+        SDL_CloseCamera(app_state->camera);
+    }
+    if (app_state->texture != NULL) {
+        SDL_DestroyTexture(app_state->texture);
+    }
+
+    free(app_state);
+}
+
+           

@@ -10,6 +10,9 @@
 #include "kmeans.h"
 #define MY_FONT "C:\\Windows\\Fonts\\arial.ttf"
 #define SDL_MESSAGEBOX_ERROR                    0x00000010u
+#define N 1280*720
+#define D 3
+#define K 2
 typedef struct {
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -81,11 +84,65 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 void log_line_error(const char* function_name, int line_number) {
     printf("Error at %s (line %d): %s\n", function_name, line_number, SDL_GetError());
 }
+void displaykmeans(Uint8 *DataArray, int *Location)
+{
 
+ //float *DataArray = (float*)calloc(N * D, sizeof(float));
+
+    if (DataArray == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+       // return 1;
+    }
+
+    //  float initData[N * D] = {
+    //    100 ,100,100,
+    //    100 ,100,100,
+    //    100 ,100,100,
+    //    100 ,100,100,
+    //    100 ,100,100,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+    //    200,200,200,
+
+    // };
+
+    // // Copy initData into allocated memory
+    // for (int i = 0; i < N * D; ++i) {
+    //     DataArray[i] = initData[i];
+    // }
+
+    // Call clustering function
+      Location=kmeans2(DataArray,Location,N,D,K);  // Make sure this function is correctly defined in test.h
+
+    // Free memory
+  //  free(DataArray);
+   // for(int i=0;i<20;i++)
+ // printf("%d ",Location[i]);
+  for(int i=0;i<100;i++)
+  printf(" %d",Location[i]);
+
+ 
+
+
+
+
+}
 // Then in SDL_AppIterate, add specific logging without changing your code
 SDL_AppResult SDL_AppIterate(void* appstate) {
     AppState* app_state = (AppState*)appstate;
-  
+     
     //              // Dynamically allocate memory for the 2D array using malloc
 //    int **a = (int **)malloc(1280 * sizeof(int  *));  
     
@@ -149,33 +206,63 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         int colorspace = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER, 0);
        
         SDL_Surface* rgb_frame = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
-       int a[17][30]; // You can reduce the array size if only storing every step
-int a2[17][30]; 
+   
 //3840 is the pitch
 if (rgb_frame) {
+    int *Location = (int*)calloc(N+(D*K) , sizeof(int));
     Uint8* pixels = (Uint8*)rgb_frame->pixels;
+   // printf("%d \n",sizeof(rgb_frame->pixels));
     int pitch = rgb_frame->pitch;
     int step = 1; // Approximate step to get ~500 samples
+          Location=kmeans2(pixels,Location,N,D,K);  // Make sure this function is correctly defined in test.h
+// for(int i=1000;i<1155;i++)
+//  printf("%d",Location[i]);
+//  printf("....\n");
 
-    for (int y = 0; y < rgb_frame->h; y += step) { 
-        for (int x = 0; x < rgb_frame->w; x += step) { 
-            int index = y * pitch + x * 3  ;
-            Uint8 r = pixels[index];
-            Uint8 g = pixels[index + 1];
-            Uint8 b = pixels[index + 2];
-           // printf("Pixel[%d][%d] = R:%d G:%d B:%d\n", y, x, r, g, b);
-    // // Invert colors
-            pixels[index] = 255-pixels[index]  ;// Red
-           pixels[index + 1] =255-pixels[index+1];  // Green
-           pixels[index + 2] = 255-pixels[index+2];   // Blue
-           //a[y/43][x/43] = r; 
-            //a2[y/43][x/43] = g; 
- SDL_SetRenderDrawColor(app_state->renderer, r, g, b, SDL_ALPHA_OPAQUE_FLOAT);
-          // SDL_RenderPoint(app_state->renderer,450+1*(float)r,450+1*(float)b);
+  //displaykmeans(pixels,Location);
+ // printf("%d %d ",rgb_frame->h,rgb_frame->w);
+    for (int y = 0; y < rgb_frame->h; y += step) {  //720
+        for (int x = 0; x < rgb_frame->w; x += step) { //1280
+//             int index = y * pitch + x * 3  ;
+//             Uint8 r = pixels[index];
+//             Uint8 g = pixels[index + 1];
+//             Uint8 b = pixels[index + 2];
+//            // printf("Pixel[%d][%d] = R:%d G:%d B:%d\n", y, x, r, g, b);
+//     // // Invert colors
+   
+//             pixels[index] = 255-pixels[index]  ;// Red
+//            pixels[index + 1] =255-pixels[index+1];  // Green
+//            pixels[index + 2] = 255-pixels[index+2];   // Blue
+//            //a[y/43][x/43] = r; 
+//             //a2[y/43][x/43] = g; 
+//  SDL_SetRenderDrawColor(app_state->renderer, r, g, b, SDL_ALPHA_OPAQUE_FLOAT);
+//           // SDL_RenderPoint(app_state->renderer,450+1*(float)r,450+1*(float)b);
            
            //  printf("R:%d G:%d \n", r, g);
+
+int pixel_index = y * pitch + x * 3; // 3 for RGB24
+        int idx = y * rgb_frame->w + x; // Flattened pixel index (0..N-1)
+
+        int cluster = Location[idx]; // 0..K-1
+
+        // Get centroid color from Location array
+        int centroid_base = N + cluster * D;
+        Uint8 r = (Uint8)Location[centroid_base + 0];
+        Uint8 g = (Uint8)Location[centroid_base + 1];
+        Uint8 b = (Uint8)Location[centroid_base + 2];
+
+        // Set pixel to centroid color
+        pixels[pixel_index + 0] = r;
+        pixels[pixel_index + 1] = g;
+        pixels[pixel_index + 2] = b;
+
         }
+   
     }
+free(Location);
+
+
+    
     //rgb_frame->pixels=calculatingthekmeans(rgb_frame->pixels);
      SDL_UpdateTexture(app_state->texture, NULL, rgb_frame->pixels, rgb_frame->pitch);
  SDL_RenderPresent(app_state->renderer);
