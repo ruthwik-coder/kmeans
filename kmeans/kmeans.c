@@ -4,15 +4,15 @@
 #define SDL_MAIN_USE_CALLBACKS 1
  #include <SDL3/SDL.h>
  #include <SDL3/SDL_main.h>
- #include <SDL3_ttf/SDL_ttf.h>
+// #include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "kmeans.h"
 #define MY_FONT "C:\\Windows\\Fonts\\arial.ttf"
 #define SDL_MESSAGEBOX_ERROR                    0x00000010u
-//#define N 1280*720
+#define N 1280*720
 #define D 3
-#define K 5
+#define K 2
 typedef struct {
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -97,7 +97,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
             app_state->width = frame->w;
             app_state->height = frame->h;
          //   app_state->texture = SDL_CreateTexture(app_state->renderer, frame->format, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
- app_state->texture = SDL_CreateTexture(app_state->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, camera_viewport.w, camera_viewport.h);
+ app_state->texture = SDL_CreateTexture(app_state->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
             if (app_state->texture == NULL) {
                 log_line_error(__func__, __LINE__);
             }
@@ -131,11 +131,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         int height = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0);
         int colorspace = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_COLORSPACE_NUMBER, 0);
        
-        SDL_Surface* aa = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
-      SDL_Surface* rgb_frame=  SDL_ScaleSurface(aa, camera_viewport.w, camera_viewport.h, SDL_SCALEMODE_NEAREST);
-SDL_DestroySurface(aa);
-int N=rgb_frame->w*rgb_frame->h;
-   printf("%d %d %d \n ", N, rgb_frame->h,rgb_frame->w);
+        SDL_Surface* rgb_frame = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
+   
 //3840 is the pitch
 if (rgb_frame) {
     int *Location = (int*)calloc(N+(D*K) , sizeof(int));

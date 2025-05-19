@@ -7,24 +7,21 @@ LIB_DIR = C:\msys64\mingw64\lib
 
 # Compiler Flags
 CFLAGS = -I"$(INCLUDE_DIR)"
-LDFLAGS = -L"$(LIB_DIR)" -lmingw32 -lSDL3 -lSDL3_ttf
+LDFLAGS = -L"$(LIB_DIR)" -O2 -lmingw32 -lSDL3 -lSDL3_ttf
 
 # Targets
-TARGETS = kmeans.exe 
-#sample.exe
+TARGETS = kmeans.exe
 
 # Sources
 KMEANS_SRC = kmeans.c
-#SAMPLE_SRC = sample.c
+KMEANS_HDR = kmeans.h
 
 # Build Rule
 all: $(TARGETS)
 
-kmeans.exe: $(KMEANS_SRC)
+# Explicit dependency on kmeans.h
+kmeans.exe: $(KMEANS_SRC) $(KMEANS_HDR)
 	$(CC) $(KMEANS_SRC) -o kmeans.exe $(CFLAGS) $(LDFLAGS)
-
-#sample.exe: $(SAMPLE_SRC)
-#	$(CC) $(SAMPLE_SRC) -o sample.exe $(CFLAGS) $(LDFLAGS)
 
 # Clean Rule
 clean:

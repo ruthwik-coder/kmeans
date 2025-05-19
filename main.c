@@ -19,11 +19,12 @@ typedef struct {
     SDL_CameraID* devices;
     SDL_Camera* camera;
     SDL_Texture* texture;
-
+    
+    //TTF_Font *font ;
   float cam_x, cam_y, cam_w, cam_h;
 bool dragging;
 float drag_offset_x, drag_offset_y;
-
+    //  int a[17][30],a2[17][30];
     int width;
     int height;
     int camera_count;
@@ -42,7 +43,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
         .height = 600
     };
     *appstate = app_state;
-
+ //app_state->font= TTF_OpenFont(MY_FONT, 50);
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_CAMERA)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -87,7 +88,7 @@ void log_line_error(const char* function_name, int line_number) {
 // Then in SDL_AppIterate, add specific logging without changing your code
 SDL_AppResult SDL_AppIterate(void* appstate) {
     AppState* app_state = (AppState*)appstate;
-  
+
     SDL_Surface* frame = SDL_AcquireCameraFrame(app_state->camera, NULL);
     if (frame != NULL) {
         if (app_state->texture == NULL) {
@@ -101,13 +102,22 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
                 log_line_error(__func__, __LINE__);
             }
         } else {
-            SDL_Log("Point 2: After updating texture - Error: %s", SDL_GetError());
+            // Log point 1: Before updating texture
+          //  SDL_Log("Point 1: Before updating texture - Error: %s", SDL_GetError());
+            
+           // SDL_UpdateTexture(app_state->texture, NULL, frame->pixels, frame->pitch);
+            
+            // Log point 2: After updating texture
+          //  SDL_Log("Point 2: After updating texture - Error: %s", SDL_GetError());
         }
 
+        // Log point 3: Before getting properties
+        //SDL_Log("Point 3: Before getting properties - Error: %s", SDL_GetError());
         
         SDL_PropertiesID props = SDL_GetTextureProperties(app_state->texture);
         
-       
+        // Log point 4: After getting properties
+        //SDL_Log("Point 4: After getting properties - Error: %s", SDL_GetError());
         
         if (props == 0) {
             printf("Failed to get texture properties: %s\n", SDL_GetError());
@@ -135,12 +145,11 @@ if (rgb_frame) {
     for (int y = 0; y < rgb_frame->h; y += step) {  //720
         for (int x = 0; x < rgb_frame->w; x += step) { //1280
 
-      
 
 int pixel_index = y * pitch + x * 3; // 3 for RGB24
-        int idx = y * rgb_frame->w + x; // Flattened pixel index (0..N-1)
+    //    int idx = y * rgb_frame->w + x; // Flattened pixel index (0..N-1)
 
-        int cluster = Location[idx]; // 0..K-1
+        int cluster = Location[pixel_index/3]; // 0..K-1
 
         // Get centroid color from Location array
         int centroid_base = N + cluster * D;
@@ -160,6 +169,7 @@ free(Location);
 
 
     
+    //rgb_frame->pixels=calculatingthekmeans(rgb_frame->pixels);
      SDL_UpdateTexture(app_state->texture, NULL, rgb_frame->pixels, rgb_frame->pitch);
  SDL_RenderPresent(app_state->renderer);
     SDL_DestroySurface(rgb_frame);
@@ -250,6 +260,9 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     if (app_state->texture != NULL) {
         SDL_DestroyTexture(app_state->texture);
     }
+
+
+//TTF_CloseFont(app_state->font);
 
     free(app_state);
 }

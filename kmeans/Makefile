@@ -1,19 +1,15 @@
-CC = g++
-SRCDIR = .
-SOURCES = $(wildcard $(SRCDIR)/*.c)
-OBJECTS = $(SOURCES:.c=.o)
-CFLAGS = -Wall -O2 -c
-EXECUTABLE = kmeansC.exe
+CC = gcc
+SDL_INC = $(HOME)/SDL3/include
+SDL_LIB = $(HOME)/SDL3/build ./kmeans
+CFLAGS = -I"$(SDL_INC)"
+LDFLAGS = -L"$(SDL_LIB)" -lm -lSDL3
+TARGET = kmeans
+SRC = kmeans.c
+HDR = kmeans.h
 
-%.o: %.c
-	$(CC) $(CFLAGS) $< -o $@
-
-$(EXECUTABLE): $(OBJECTS)
-	$(CC) -o $@ $(OBJECTS)
-
-.PHONY: clean
+all: $(TARGET)
+$(TARGET): $(SRC) $(HDR)
+	$(CC) $(SRC) -o $(TARGET) $(CFLAGS) $(LDFLAGS)
 clean:
-	del /Q $(subst /,\,$(OBJECTS)) $(EXECUTABLE) 2> NUL || exit 0
+	rm -f $(TARGET)
 
-example: $(EXECUTABLE)
-	./$(EXECUTABLE) cluster 1024 2 2 ./N1_K2_D2.txt
