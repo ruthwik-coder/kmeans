@@ -28,9 +28,7 @@ float drag_offset_x, drag_offset_y;
     int width;
     int height;
     int camera_count;
-     Uint8 cr;
-     Uint8 cg;
-     Uint8 cb;
+     Uint8* centroids; // Will store K*3 values (RGB for each centroid)
 } AppState ;
 SDL_Rect camera_viewport = {20, 20,320, 240};
  // Initial small position/size
@@ -75,7 +73,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
     app_state->cam_x = 20.0f;
     app_state->cam_y = 20.0f;
     app_state->dragging = false;
-
+    app_state->centroids = malloc(app_state->K * 3 * sizeof(Uint8));
     if (!SDL_CreateWindowAndRenderer("SDL3 Camera Demo", app_state->width, app_state->height, 0, &(app_state->window), &(app_state->renderer))) {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -115,9 +113,12 @@ AppState* app_state = (AppState*)appstate;
                 .h = rect_height
             };
 
-          
+            // Get RGB values for this centroid
+            Uint8 r = app_state->centroids[i * 3 + 0];
+            Uint8 g = app_state->centroids[i * 3 + 1];
+            Uint8 b = app_state->centroids[i * 3 + 2];
 
-            SDL_SetRenderDrawColor(app_state->renderer, app_state->cr,  app_state->cg,  app_state->cb, 255);
+            SDL_SetRenderDrawColor(app_state->renderer, r, g, b, 255);
             SDL_RenderFillRect(app_state->renderer, &rect);
         }
 
@@ -192,31 +193,28 @@ if (rgb_frame) {
     int step = 1; // Approximate step to get ~500 samples
           Location=kmeans2(pixels,Location,N,D,app_state->K);  // Make sure this function is correctly defined in test.h
 
+ 
+    // Extract centroids from the end of Location array and store them
+    for (int k = 0; k < app_state->K; k++) {
+        int centroid_base = N + k * D;
+        app_state->centroids[k * 3 + 0] = (Uint8)Location[centroid_base + 0]; // R
+        app_state->centroids[k * 3 + 1] = (Uint8)Location[centroid_base + 1]; // G
+        app_state->centroids[k * 3 + 2] = (Uint8)Location[centroid_base + 2]; // B
+    }
+
     for (int y = 0; y < rgb_frame->h; y += step) {  //720
         for (int x = 0; x < rgb_frame->w; x += step) { //1280
 
+            int pixel_index = y * pitch + x * 3; // 3 for RGB24
+            int cluster = Location[pixel_index/3]; // 0..K-1
 
-int pixel_index = y * pitch + x * 3; // 3 for RGB24
-    //    int idx = y * rgb_frame->w + x; // Flattened pixel index (0..N-1)
-
-        int cluster = Location[pixel_index/3]; // 0..K-1
-
-        // Get centroid color from Location array
-        int centroid_base = N + cluster * D;
-        app_state->cr = (Uint8)Location[centroid_base + 0];
-        app_state->cg = (Uint8)Location[centroid_base + 1];
-        app_state->cb= (Uint8)Location[centroid_base + 2];
-
-        // Set pixel to centroid color
-        pixels[pixel_index + 0] =  app_state->cr;
-        pixels[pixel_index + 1] =  app_state->cg;
-        pixels[pixel_index + 2] = app_state->cb;
-
+            // Use the stored centroid colors
+            pixels[pixel_index + 0] = app_state->centroids[cluster * 3 + 0]; // R
+            pixels[pixel_index + 1] = app_state->centroids[cluster * 3 + 1]; // G
+            pixels[pixel_index + 2] = app_state->centroids[cluster * 3 + 2]; // B
         }
-   
     }
-free(Location);
-
+    free(Location);
 
     
     //rgb_frame->pixels=calculatingthekmeans(rgb_frame->pixels);
@@ -318,14 +316,18 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
  if (event->type == SDL_EVENT_KEY_DOWN) { 
 //SDL_assert(event->type == SDL_EVENT_KEY_DOWN); /* just checking key presses here... */
     if (event->key.scancode == SDL_SCANCODE_KP_PLUS) {
-
        app_state->K++;
-                    printf("%d \n",app_state->K);
+       // Reallocate centroids array for new K value
+       app_state->centroids = realloc(app_state->centroids, app_state->K * 3 * sizeof(Uint8));
+       printf("%d \n",app_state->K);
           /* pressed what would be "W" on a US QWERTY keyboard. Move forward! */
     } else if (event->key.scancode == SDL_SCANCODE_KP_MINUS) {
-
-       app_state->K--;
-                   printf("%d \n",app_state->K);
+       if (app_state->K > 1) { // Prevent K from going below 1
+           app_state->K--;
+           // Reallocate centroids array for new K value
+           app_state->centroids = realloc(app_state->centroids, app_state->K * 3 * sizeof(Uint8));
+           printf("%d \n",app_state->K);
+       }
          /* pressed what would be "S" on a US QWERTY keyboard. Move backward! */
     }
  }
@@ -345,7 +347,9 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     if (app_state->texture != NULL) {
         SDL_DestroyTexture(app_state->texture);
     }
-
+   if (app_state->centroids != NULL) {
+        free(app_state->centroids);
+    }
 
 //TTF_CloseFont(app_state->font);
 
