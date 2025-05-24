@@ -12,15 +12,15 @@
 #define SDL_MESSAGEBOX_ERROR                    0x00000010u
 //#define N 1280*720
 #define D 3
-#define K 5
+//#define K 2
 typedef struct {
     SDL_Window* window;
     SDL_Renderer* renderer;
     SDL_CameraID* devices;
     SDL_Camera* camera;
     SDL_Texture* texture;
-    
-    //TTF_Font *font ;
+    int K;
+    TTF_Font *font ;
   float cam_x, cam_y, cam_w, cam_h;
 bool dragging;
 float drag_offset_x, drag_offset_y;
@@ -28,22 +28,44 @@ float drag_offset_x, drag_offset_y;
     int width;
     int height;
     int camera_count;
+     Uint8 cr;
+     Uint8 cg;
+     Uint8 cb;
 } AppState ;
-SDL_Rect camera_viewport = {20, 20, 320, 240}; // Initial small position/size
+SDL_Rect camera_viewport = {20, 20,320, 240};
+ // Initial small position/size
 bool resizing = false;
 int resize_margin = 10;
 
+int rand_lim(int limit) {
+/* return a random number between 0 and limit inclusive.
+ *  */
+// #includde <stdlib.h>
+    int divisor = RAND_MAX/(limit+1);
+    int retval;
+
+    do { 
+        retval = rand() / divisor;
+    } while (retval > limit);
+
+    return retval;
+}
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 
-     
+     if (TTF_Init() < 0) {
+        SDL_Log("Couldn't initialize SDL_ttf: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
     AppState* app_state = malloc(sizeof(AppState));
     *app_state = (AppState){
         .width = 800,
-        .height = 600
+        .height = 600,
+        
     };
     *appstate = app_state;
- //app_state->font= TTF_OpenFont(MY_FONT, 50);
+       app_state->K=2;
+ app_state->font= TTF_OpenFont(MY_FONT, 50);
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_CAMERA)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -79,7 +101,28 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 
     return SDL_APP_CONTINUE;
 }
+void drawrect(void *appstate)
+{
+AppState* app_state = (AppState*)appstate;
+    // Width of each rectangle (spread evenly)
+    int rect_width = 50;
+    int rect_height =50;
+              for (int i = 0; i < app_state->K; ++i) {
+            SDL_FRect rect = {
+                .x = i * rect_width,
+                .y = 450,
+                .w = rect_width,
+                .h = rect_height
+            };
 
+          
+
+            SDL_SetRenderDrawColor(app_state->renderer, app_state->cr,  app_state->cg,  app_state->cb, 255);
+            SDL_RenderFillRect(app_state->renderer, &rect);
+        }
+
+
+}
 // Add this function to help with precise error tracking
 void log_line_error(const char* function_name, int line_number) {
     printf("Error at %s (line %d): %s\n", function_name, line_number, SDL_GetError());
@@ -88,16 +131,20 @@ void log_line_error(const char* function_name, int line_number) {
 // Then in SDL_AppIterate, add specific logging without changing your code
 SDL_AppResult SDL_AppIterate(void* appstate) {
     AppState* app_state = (AppState*)appstate;
-
+  // printf("%d\n",app_state->noof);
     SDL_Surface* frame = SDL_AcquireCameraFrame(app_state->camera, NULL);
-    if (frame != NULL) {
+    if (frame != NULL) {//printf("**** \n");
         if (app_state->texture == NULL) {
             SDL_Log("Creating new texture %dx%d", frame->w, frame->h);
             SDL_SetWindowSize(app_state->window, frame->w, frame->h);
             app_state->width = frame->w;
             app_state->height = frame->h;
+     
+     
+ app_state->texture = SDL_CreateTexture(app_state->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING,camera_viewport.w, camera_viewport.h);
          //   app_state->texture = SDL_CreateTexture(app_state->renderer, frame->format, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
- app_state->texture = SDL_CreateTexture(app_state->renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, camera_viewport.w, camera_viewport.h);
+
+ //app_state->texture = SDL_CreateTexture(app_state->renderer, frame->format, SDL_TEXTUREACCESS_STREAMING, frame->w, frame->h);
             if (app_state->texture == NULL) {
                 log_line_error(__func__, __LINE__);
             }
@@ -113,7 +160,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
         // Log point 3: Before getting properties
         //SDL_Log("Point 3: Before getting properties - Error: %s", SDL_GetError());
-        
+
         SDL_PropertiesID props = SDL_GetTextureProperties(app_state->texture);
         
         // Log point 4: After getting properties
@@ -135,15 +182,15 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
       SDL_Surface* rgb_frame=  SDL_ScaleSurface(aa, camera_viewport.w, camera_viewport.h, SDL_SCALEMODE_NEAREST);
 SDL_DestroySurface(aa);
 int N=rgb_frame->w*rgb_frame->h;
-   printf("%d %d %d \n ", N, rgb_frame->h,rgb_frame->w);
+ //  printf("%d %d %d \n ", N, rgb_frame->h,rgb_frame->w);
 //3840 is the pitch
 if (rgb_frame) {
-    int *Location = (int*)calloc(N+(D*K) , sizeof(int));
+    int *Location = (int*)calloc(N+(D*app_state->K) , sizeof(int));
     Uint8* pixels = (Uint8*)rgb_frame->pixels;
    // printf("%d \n",sizeof(rgb_frame->pixels));
     int pitch = rgb_frame->pitch;
     int step = 1; // Approximate step to get ~500 samples
-          Location=kmeans2(pixels,Location,N,D,K);  // Make sure this function is correctly defined in test.h
+          Location=kmeans2(pixels,Location,N,D,app_state->K);  // Make sure this function is correctly defined in test.h
 
     for (int y = 0; y < rgb_frame->h; y += step) {  //720
         for (int x = 0; x < rgb_frame->w; x += step) { //1280
@@ -156,14 +203,14 @@ int pixel_index = y * pitch + x * 3; // 3 for RGB24
 
         // Get centroid color from Location array
         int centroid_base = N + cluster * D;
-        Uint8 r = (Uint8)Location[centroid_base + 0];
-        Uint8 g = (Uint8)Location[centroid_base + 1];
-        Uint8 b = (Uint8)Location[centroid_base + 2];
+        app_state->cr = (Uint8)Location[centroid_base + 0];
+        app_state->cg = (Uint8)Location[centroid_base + 1];
+        app_state->cb= (Uint8)Location[centroid_base + 2];
 
         // Set pixel to centroid color
-        pixels[pixel_index + 0] = r;
-        pixels[pixel_index + 1] = g;
-        pixels[pixel_index + 2] = b;
+        pixels[pixel_index + 0] =  app_state->cr;
+        pixels[pixel_index + 1] =  app_state->cg;
+        pixels[pixel_index + 2] = app_state->cb;
 
         }
    
@@ -174,6 +221,7 @@ free(Location);
     
     //rgb_frame->pixels=calculatingthekmeans(rgb_frame->pixels);
      SDL_UpdateTexture(app_state->texture, NULL, rgb_frame->pixels, rgb_frame->pitch);
+     
  SDL_RenderPresent(app_state->renderer);
     SDL_DestroySurface(rgb_frame);
 }
@@ -200,13 +248,32 @@ free(Location);
    // SDL_Log("Point 5: Before rendering texture - Error: %s", SDL_GetError());
     
     SDL_RenderTexture(app_state->renderer, app_state->texture, NULL, &camera_viewport_f);
+ SDL_SetRenderDrawColor(app_state->renderer, 20, 20, 20, 255);
+      //  SDL_RenderClear(app_state->renderer);
 
+        // Render k
+  char cv[32];  // A buffer to hold the text "k <value>"
+snprintf(cv, sizeof(cv), "k=%d", app_state->K); 
+//printf("%s ... \n",cv);
+        SDL_Color textColor = {0,0,0,0};
+        SDL_Surface* kSurface = TTF_RenderText_Blended(app_state->font, cv,strlen(cv), textColor);
+        SDL_Texture* kTexture = SDL_CreateTextureFromSurface(app_state->renderer, kSurface);
+        SDL_FRect kRect = {700, 50, 50,50 };
+ 
+        SDL_RenderTexture(app_state->renderer, kTexture, NULL, &kRect);
+        SDL_DestroyTexture(kTexture);
+
+
+
+drawrect(appstate);
+        SDL_DestroySurface(kSurface);
     SDL_RenderPresent(app_state->renderer);
     
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
+    AppState* app_state = (AppState*)appstate;
     if (event->type == SDL_EVENT_QUIT) {
         return SDL_APP_SUCCESS;
     }
@@ -244,9 +311,24 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         if (resizing && mouse_down) {
             camera_viewport.w = mx - camera_viewport.x;
             camera_viewport.h = my - camera_viewport.y;
+
         }
     }
 
+ if (event->type == SDL_EVENT_KEY_DOWN) { 
+//SDL_assert(event->type == SDL_EVENT_KEY_DOWN); /* just checking key presses here... */
+    if (event->key.scancode == SDL_SCANCODE_KP_PLUS) {
+
+       app_state->K++;
+                    printf("%d \n",app_state->K);
+          /* pressed what would be "W" on a US QWERTY keyboard. Move forward! */
+    } else if (event->key.scancode == SDL_SCANCODE_KP_MINUS) {
+
+       app_state->K--;
+                   printf("%d \n",app_state->K);
+         /* pressed what would be "S" on a US QWERTY keyboard. Move backward! */
+    }
+ }
 
     return SDL_APP_CONTINUE;
 }

@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "random": "c"
+        "random": "c",
+        "numbers": "c",
+        "sdl_ttf.h": "c"
     }
 }

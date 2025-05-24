@@ -1,389 +1,171 @@
-#include <stdio.h>
-#include <math.h>
+
+/*
+ * This example code creates an SDL window and renderer, and then clears the
+ * window to a different color every frame, so you'll effectively get a window
+ * that's smoothly fading between colors.
+ *
+ * This code is public domain. Feel free to use it for any purpose!
+ */
+
+#define SDL_MAIN_USE_CALLBACKS 1  /* use the callbacks instead of main() */
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 #include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
-#include <string.h>
+#include <stdio.h>
+ #include <SDL3_ttf/SDL_ttf.h>
+ #define MY_FONT "C:\\Windows\\Fonts\\arial.ttf"
+/* We will use this renderer to draw into this window every frame. */
+typedef struct{
+ SDL_Window *window ;
+ SDL_Renderer *renderer;
 
-#define MAX_SIZE 100
-#define FLAG_MAX 9999
-#define PREVIOUS_FILES 100
-/*Sorry for Caps */
-/*CURRENT VERSION WORKS WITHOUT HEADER FILES AND FUNCTIONS, IT'S WRITTEN THIS WAY
-FOR EASE OF USING AND READING OF RAW CODE*/
+int k;
+TTF_Font *font ;
 
-int main(int argc, char const **argv) {
-
-    /* Starting Variables */
-    int N = -1; /*Size of data|| Initializing at -1 because our finder always count the last \n*/
-    unsigned int K = 0; /* Amount of clusters to be created,input given by the user */
-    unsigned int D = 0; /* Number of features(dimensions) */
-    srand(time(NULL));/*True Random*/
-    unsigned int randVar = 0;/*Variable for picking random initial Centroids*/
-    unsigned int iteration = 0;/*Amount of algorithm's iterations counter*/
-    int flagEnd = 0;/*Initializing flag variable for do-while break*/
-    clock_t start, end; //Timers
-
-    /*(loop var) i is used for N, j is used for K,d is used for D */
-    register int i; //Elements
-    register int j; //Clusters
-    register int d; //Features
-
-    /*-----------------------------*/
-    char filename[MAX_SIZE];/* Holder for Dataset Filename */
-    unsigned int choise = 0; /*Flag variable for filename(given by the user) error check */
-    /*-----------------------------*/
-
-    FILE *Dataset; /*Stating Dataset file Variable */
-
-    /* Asking Data File from user */
-    printf("\n Input Dataset filename : ");
-    scanf("%s",filename);
-    printf("\n");
-    /*------------Filename Error Check-----------------*/
-    /*access function checks if the file exists,if we get -1 it means it doesnt exists*/
-    if(access(filename, F_OK) == -1)
-    {
-     /*Informs the user about the error with the filename and initiates the loop */
-      printf(" There is something wrong with the File\n");
-      while(choise == 0)
-      {
-        printf("\n Input New File(Type 0 to Exit): ");
-        scanf("%s",filename);
-        printf("\n");
-        if(strcmp(filename,"0") == 0)/*If users types 0 at 2nd attempt exits program*/
-          {
-            printf("\n Program has been terminated\n\n");
-            return -1;
-          }else if(access(filename, F_OK) == -1)/* >2 attempt asking till user types correctly or press 0 to exit*/
-          {
-            choise = 0;/*Continue with the asking filename loop*/
-          }else
-          {
-            choise = 1;/*User typed the correct file and breaks while-loop normally*/
-          }
-      }
-
-
+  }AppState;
+/* This function runs once at startup. */
+SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
+{     AppState* app_state = malloc(sizeof(AppState));
+    SDL_SetAppMetadata("Example Renderer Clear", "1.0", "com.example.renderer-clear");
+   *appstate = app_state;
+   app_state->k=1;
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
+        SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
-    /*-----------------------------*/
-    /*Opening the file after error checking */
-    Dataset = fopen(filename,"r");
-
-
-    /*------------Finding the number of features from the dataset -----------------*/
-
-
-    int flag = 0;/*temp flag */
-    int flagPrev = 0;/*Holder of previous iteration's flag */
-    int counter = 0;/*switching between 0-1,necessary for the loop bellow*/
-    char c;/*Temp char for file scaning*/
-
-    /*It increases D by 1 everytime counter == 0 and flagPrev != flag,the way
-     it works is by checking first's row characters one by one, if it's a number(0-9),
-     operation sign(+,-) or a dot(.) the sets flags = 1 and increases counter by 1.
-     If it's something else(space( ),tab(\t),comma(,) etc) sets both to zero.
-     With the correct combination D increases by 1 every time we pass through a new feature*/
-     while(c != '\n')
-      {
-        fscanf(Dataset, "%c", &c);
-        if((c >= '0' && c <= '9') ||( c == '-' || c == '+' ) || (c == '.' ))
-        {
-           flag = 1;
-           counter++;
-        } else
-        {
-           flag = 0;
-           counter = 0;
-        }
-        if(counter == 0 && flagPrev != flag)
-        {
-           ++D;
-        }
-        flagPrev = flag;
-      }
-      rewind(Dataset);/* sets the pointer at the begining of the file*/
-
-    /*----------Finding the number of elements-------------------*/
-    while(!feof(Dataset))
-        {
-           fscanf(Dataset,"%c",&c);
-           if(c == '\n')
-              ++N;
-        }
-    rewind(Dataset);/* sets the pointer at the begining of the file*/
-        /*-----------------------------*/
-    /*---Printing size of Data and number of features(speaks for itself though)---*/
-    printf("\n Size of Data : %d\n",N);
-    printf("\n Number of features : %d\n",D);
-
-    /*---Getting K from user----*/
-
-    /*Asking the user to give the amount of clusters */
-    printf("\n Give Clusters(k > 0 required) : ");
-    scanf("%d",&K);
-    printf("\n");
-
-    /* Error check statement,cant run with K <= 0 */
-    if(K <= 0)
-    {
-      printf("\n Can't be executed with K = %d!(k > 0 required)\n",K);
-      printf("\n Program has been terminated\n\n");
-      return -2;
+if (TTF_Init() < 0) {
+        SDL_Log("Couldn't initialize SDL_ttf: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
-    /*-----------------------------*/
-
-    /*------Memory Allocation-----*/
-    float *DataArray;//Main Array for loading the initial Data
-    DataArray = (float*)calloc(N*D,sizeof(float));/*Allocating space for N(rows) * D(features) */
-
-    float *Centroids;/*Array holding Centroids throughout the execution of the algorithm*/
-    Centroids = (float*)calloc(K*D,sizeof(float));/*Allocating space for K(clusters) * D(features) */
-
-    float *FlagCentroids;/*Array for holding Centroids of a previous iteration,used in loop testing */
-    FlagCentroids = (float*)calloc(K*D,sizeof(float));/*Same allocation as line:120*/
-
-    int *Counter;/*Array for holding the counter about how many elements each cluster has */
-    Counter = (int*)calloc(K,sizeof(int));/*Allocating space the same as K(clusters)*/
-
-    float *ClusterTotalSum;/*Array for holding the total sum of each cluster*/
-    ClusterTotalSum = (float*)calloc(K*D,sizeof(float));/*Allocating space for K(rows) and D(features)*/
-
-    float *Distance;/*Array for holding the distance between each element from each Centroid*/
-    Distance = (float*)calloc(N*K,sizeof(float));/*Allocating space for N(elements) * K(Centroids)*/
-
-    float *Min;/*Array for holding the min Distance*/
-    Min = (float*)calloc(N,sizeof(float));
-
-    int *Location;/*Array holding each element's location(cluster)*/
-    Location = (int*)calloc(N,sizeof(int));
-
-
-    /*--------------------------*/
-
-    /*---------Loading Data---------*/
-    for(i = 0; i < N; ++i)
-    {
-      for(d = 0; d < D; ++d)
-        fscanf(Dataset,"%f,",&DataArray[i*D + d]);/*"%f," is c undefined behaviour */
+    if (!SDL_CreateWindowAndRenderer("examples/renderer/clear", 1000, 500, 0,  &(app_state->window), &(app_state->renderer))) {
+        SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
-    fclose(Dataset);//Closing the initial Data File
-    /*--------------------------*/
+  app_state->font= TTF_OpenFont(MY_FONT, 25);
+   // Ensure "arial.ttf" exists in your folder
+    if (!app_state->font) {
+        printf("Font load error: %s\n", SDL_GetError());
+        return 1;
+    }
+    return SDL_APP_CONTINUE;  /* carry on with the program! */
+}
+int rand_lim(int limit) {
+/* return a random number between 0 and limit inclusive.
+ *  */
+// #includde <stdlib.h>
+    int divisor = RAND_MAX/(limit+1);
+    int retval;
 
-    /*--------Generating Initial Random Centroids-----*/
-    // --- k-means++ initialization ---
-Centroids[0*D + 0] = DataArray[0*D + 0];
-for (d = 1; d < D; ++d)
-    Centroids[0*D + d] = DataArray[0*D + d];
+    do { 
+        retval = rand() / divisor;
+    } while (retval > limit);
 
-// Array to store the minimum squared distance to any centroid so far
-float *minDistSq = (float*)calloc(N, sizeof(float));
-if (!minDistSq) { printf("Memory error\n"); exit(1); }
-
-for (i = 0; i < N; ++i) {
-    float dist = 0.0;
-    for (d = 0; d < D; ++d)
-        dist += (DataArray[i*D + d] - Centroids[0*D + d]) * (DataArray[i*D + d] - Centroids[0*D + d]);
-    minDistSq[i] = dist;
+    return retval;
 }
 
-// Select the rest K-1 centroids
-for (j = 1; j < K; ++j) {
-    // 1. Compute total of minDistSq
-    float total = 0.0;
-    for (i = 0; i < N; ++i)
-        total += minDistSq[i];
 
-    // 2. Pick a random value in [0, total)
-    float r = ((float)rand() / RAND_MAX) * total;
+/* This function runs when a new event (mouse input, keypresses, etc) occurs. */
+SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
+{ int running = 1;
+ AppState* app_state = (AppState*)appstate;
 
-    // 3. Find the data point at or just above this value
-    float cumSum = 0.0;
-    int nextCentroid = N-1; // fallback
-    for (i = 0; i < N; ++i) {
-        cumSum += minDistSq[i];
-        if (cumSum >= r) {
-            nextCentroid = i;
-            break;
+    if (event->type == SDL_EVENT_QUIT) {
+        return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
+    }
+
+
+
+ if (event->type == SDL_EVENT_KEY_DOWN) { 
+//SDL_assert(event->type == SDL_EVENT_KEY_DOWN); /* just checking key presses here... */
+    if (event->key.scancode == SDL_SCANCODE_KP_PLUS) {
+
+       app_state->k++;
+                    printf("%d \n",app_state->k);
+          /* pressed what would be "W" on a US QWERTY keyboard. Move forward! */
+    } else if (event->key.scancode == SDL_SCANCODE_KP_MINUS) {
+
+       app_state->k--;
+                   printf("%d \n",app_state->k);
+         /* pressed what would be "S" on a US QWERTY keyboard. Move backward! */
+    }
+ }
+        // while (SDL_PollEvent(&event)) {
+        //     if (event->type == SDL_EVENT_KEY_DOWN) {
+        //         printf("%d ..... \n",app_state->k);
+        //         SDL_Keycode key = event->key.key;
+        //         if (key == SDLK_KP_PLUS || key == SDLK_PLUS) {
+        //             app_state->k++;
+        //             printf("%d \n",app_state->k);
+        //         } else if (key == SDLK_KP_MINUS || key == SDLK_MINUS) {
+        //            app_state->k--;
+        //            printf("%d \n",app_state->k);
+        //         }
+        //     }
+        // }
+   
+    return SDL_APP_CONTINUE;  /* carry on with the program! */
+}
+void drawrect(void *appstate)
+{
+AppState* app_state = (AppState*)appstate;
+    // Width of each rectangle (spread evenly)
+    int rect_width = 50;
+    int rect_height =20;
+              for (int i = 0; i < app_state->k; ++i) {
+            SDL_FRect rect = {
+                .x = i * rect_width,
+                .y = 450,
+                .w = rect_width,
+                .h = rect_height
+            };
+
+            // Random color
+            Uint8 r = rand_lim(255);
+            Uint8 g = rand_lim(255);
+            Uint8 b = rand_lim(255);
+
+            SDL_SetRenderDrawColor(app_state->renderer, r, g, b, 255);
+            SDL_RenderFillRect(app_state->renderer, &rect);
         }
-    }
 
-    // 4. Assign this as the next centroid
-    for (d = 0; d < D; ++d)
-        Centroids[j*D + d] = DataArray[nextCentroid*D + d];
 
-    // 5. Update minDistSq for all points
-    for (i = 0; i < N; ++i) {
-        float dist = 0.0;
-        for (d = 0; d < D; ++d)
-            dist += (DataArray[i*D + d] - Centroids[j*D + d]) * (DataArray[i*D + d] - Centroids[j*D + d]);
-        if (dist < minDistSq[i])
-            minDistSq[i] = dist;
-    }
+}
+/* This function runs once per frame, and is the heart of the program. */
+SDL_AppResult SDL_AppIterate(void *appstate)
+{   AppState* app_state = (AppState*)appstate;
+SDL_SetRenderDrawColor(app_state->renderer, 20, 20, 20, 255);
+        SDL_RenderClear(app_state->renderer);
+
+        // Render k
+  char cv[32];  // A buffer to hold the text "k <value>"
+snprintf(cv, sizeof(cv), "k=%d", app_state->k); 
+//printf("%s ... \n",cv);
+        SDL_Color textColor = {255, 255, 255, 255};
+        SDL_Surface* kSurface = TTF_RenderText_Blended(app_state->font, cv,strlen(cv), textColor);
+        SDL_Texture* kTexture = SDL_CreateTextureFromSurface(app_state->renderer, kSurface);
+        SDL_FRect kRect = {450, 10, kSurface->w, kSurface->h};
+ 
+        SDL_RenderTexture(app_state->renderer, kTexture, NULL, &kRect);
+        SDL_DestroyTexture(kTexture);
+
+
+
+drawrect(appstate);
+        SDL_DestroySurface(kSurface);
+
+        SDL_RenderPresent(app_state->renderer);
+        SDL_Delay(16);
+
+ 
+    return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
 
-// Copy Centroids to FlagCentroids
-for (j = 0; j < K; ++j)
-    for (d = 0; d < D; ++d)
-        FlagCentroids[j*D + d] = Centroids[j*D + d];
+/* This function runs once at shutdown. */
+void SDL_AppQuit(void *appstate, SDL_AppResult result)
+{
+   AppState* app_state = (AppState*)appstate;
 
-free(minDistSq);
-// --- end k-means++ initialization ---
-
-      /*--------------------------*/
-
-start = clock();
-  /*--Initializing the algoritm---*/
-    do {
-
-      /*For every iteration after the initial one resets the counter and sums to 0*/
-      if(iteration > 0)
-      {
-        for(j = 0; j < K; ++j)
-        {
-          Counter[j] = 0;//Resets counter array to 0
-          for(d = 0; d < D; ++d)
-          {
-            ClusterTotalSum[j*D + d] = 0;//Resets Sum of each cluster to 0
-          }
-        }
-      }
-
-      for(i = 0; i < N; ++i)
-      {
-        Min[i] = FLAG_MAX;
-        for(j = 0; j < K; ++j)
-        {
-          Distance[i*K + j] = 0;/*Reseting Distance at every iteration to 0 to calculate new ones */
-          for(d = 0; d < D; ++d)
-          {
-            /*Calculating distance for each element from each centroid by using sqrt(pow((x-y),2))*/
-            Distance[i*K + j] +=((DataArray[i*D + d] - Centroids[j*D + d])*(DataArray[i*D + d] - Centroids[j*D + d]));
-          }
-          Distance[i*K + j] = sqrt(Distance[i*K + j]);/*Getting the sqrt of the total features distance*/
-
-         /*Everytime it finds a distance Smaller than previous it stores it's cluster location*/
-          if(Distance[i*K + j] < Min[i])
-          {
-            Min[i] = Distance[i*K + j];
-            Location[i] = j;
-          }
-        }
-  /*For every element's  j(current Cluster)==location add it to Cluster's total sum
-  and increase counter by 1 for the corresponding cluster */
-        for(j = 0; j < K; ++j)
-        {
-          if(Location[i] == j)
-          {
-            for(d = 0; d < D; ++d)
-            {
-              ClusterTotalSum[j*D + d] += DataArray[i*D + d];
-            }
-            ++Counter[j];
-          }
-        }
-      }
-
- /*Calculate new Centroids by dividing each feature sum with Counter */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
-        {
-          Centroids[j*D + d] = ClusterTotalSum[j*D +d]/Counter[j];
-        }
-      }
-
-/*If even one feature of flag is different than the equal to Centroids
-it set's flagEnd to 0 and breaks the nested for loop and follows with an if to
-break the parent for loop. If all features are equal then set flagEnd to -1 which
-breaks the do-while loop */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
-        {
-          if(FlagCentroids[j*D + d] != Centroids[j*D + d])
-          {
-            flagEnd = 0;
-             break;
-          }else
-          {
-            flagEnd = -1;
-          }
-          
-        }
-
-        if(flagEnd == 0)
-          break;
-      }
-
-
-/*Copy new Centroids to FlagCentroids */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
-        {
-          FlagCentroids[j*D + d] = Centroids[j*D + d];
-        }
-      }
-
-      ++iteration;
-
-    } while(flagEnd != -1);
-
-    end = clock();
-
-    printf("\n Iterations : %d\n",iteration );
-    double total_time = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("\n Time of Algorithm Execution: %lf \n\n",total_time);
-
-    FILE **OutputArray;
-    OutputArray = calloc(K,sizeof(FILE*));
-    char fileName[MAX_SIZE];
-
-    for(j = 0; j < K; ++j)
-    {
-      sprintf(fileName,"Cluster_%d.txt",j);
-      OutputArray[j] = fopen(fileName,"w");
-    }
-
-    for(j = 0; j < K; ++j)
-    {
-      for(i = 0; i < N; ++i)
-      {
-        if(Location[i] == j)
-        {
-          for(d = 0; d < D; ++d)
-          {
-            fprintf(OutputArray[j],"%f ",DataArray[i*D + d]);
-          }
-          fprintf(OutputArray[j],"\n");
-        }
-      }
-    }
-
-    for(j = 0; j < K; ++j)
-    {
-      fclose(OutputArray[j]);
-    }
-
-    for(j = PREVIOUS_FILES; j >= K; --j)
-    {
-      sprintf(fileName,"Cluster_%d.txt",j);
-      remove(fileName);
-    }
-
-
-
-
-    free(DataArray);
-    free(Centroids);
-    free(FlagCentroids);
-    free(Counter);
-    free(ClusterTotalSum);
-    free(Distance);
-    free(Min);
-    free(Location);
-    free(OutputArray);
-
-  return 0;
+    free(app_state);
 }
+//>gcc test.c -o test.exe -I"C:\msys64\mingw64\include" -L"C:\msys64\mingw64\lib"  -lmingw32 -lSDL3 -lSDL3_ttf && test.exe
+//del kmeans.exe && gcc kmeans.c -o kmeans.exe -I"C:\msys64\mingw64\include" -L"C:\msys64\mingw64\lib"  -lmingw32 -lSDL3 -lSDL3_ttf && kmeans.exe
