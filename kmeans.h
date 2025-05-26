@@ -6,264 +6,218 @@
 #include <time.h>
 #include <unistd.h>
 #include <string.h>
+#include <omp.h>  // OpenMP header
 
 #define MAX_SIZE 100
 #define FLAG_MAX 9999
 #define PREVIOUS_FILES 100
 
 #endif
-/*Sorry for Caps */
-/*CURRENT VERSION WORKS WITHOUT HEADER FILES AND FUNCTIONS, IT'S WRITTEN THIS WAY
-FOR EASE OF USING AND READING OF RAW CODE*/
 
-int* kmeans2(Uint8 DataArray[],int Location[],int N,unsigned D,unsigned K) {
-
+int* kmeans2(Uint8 DataArray[], int Location[], int N, unsigned D, unsigned K) {
+    
     /* Starting Variables */
-    // int N = 20; /*Size of data|| Initializing at -1 because our finder always count the last \n*/
-    // unsigned int K = 2; /* Amount of clusters to be created,input given by the user */
-    // unsigned int D = 3; /* Number of features(dimensions) */
-  //  srand(time(NULL));/*True Random*/
-    unsigned int randVar = 0;/*Variable for picking random initial Centroids*/
-    unsigned int iteration = 0;/*Amount of algorithm's iterations counter*/
-    int flagEnd = 0;/*Initializing flag variable for do-while break*/
-    clock_t start, end; //Timers
+    unsigned int iteration = 0;
+    int flagEnd = 0;
+    clock_t start, end;
 
-    /*(loop var) i is used for N, j is used for K,d is used for D */
-    register int i; //Elements
-    register int j; //Clusters
-    register int d; //Features
+    /* Loop variables */
+    register int i, j, d;
 
-
-
-    // /*------------Finding the number of features from the dataset -----------------*/
-
-
-    int flag = 0;/*temp flag */
-    int flagPrev = 0;/*Holder of previous iteration's flag */
+    int flag = 0;
+    int flagPrev = 0;
  
-    /*-----------------------------*/
-
     /*------Memory Allocation-----*/
-    // float *DataArray;//Main Array for loading the initial Data
-    // DataArray = (float*)calloc(N*D,sizeof(float));/*Allocating space for N(rows) * D(features) */
+    float *Centroids = (float*)calloc(K*D, sizeof(float));
+    float *FlagCentroids = (float*)calloc(K*D, sizeof(float));
+    int *Counter = (int*)calloc(K, sizeof(int));
+    float *ClusterTotalSum = (float*)calloc(K*D, sizeof(float));
+    float *Distance = (float*)calloc(N*K, sizeof(float));
+    float *Min = (float*)calloc(N, sizeof(float));
 
-    float *Centroids;/*Array holding Centroids throughout the execution of the algorithm*/
-    Centroids = (float*)calloc(K*D,sizeof(float));/*Allocating space for K(clusters) * D(features) */
+    /*--------K-means++ Initialization (Parallelized)-----*/
+    // First centroid - random selection
+    Centroids[0*D + 0] = DataArray[0*D + 0];
+    for (d = 1; d < D; ++d)
+        Centroids[0*D + d] = DataArray[0*D + d];
 
-    float *FlagCentroids;/*Array for holding Centroids of a previous iteration,used in loop testing */
-    FlagCentroids = (float*)calloc(K*D,sizeof(float));/*Same allocation as line:120*/
+    float *minDistSq = (float*)calloc(N, sizeof(float));
+    if (!minDistSq) { printf("Memory error\n"); exit(1); }
 
-    int *Counter;/*Array for holding the counter about how many elements each cluster has */
-    Counter = (int*)calloc(K,sizeof(int));/*Allocating space the same as K(clusters)*/
-
-    float *ClusterTotalSum;/*Array for holding the total sum of each cluster*/
-    ClusterTotalSum = (float*)calloc(K*D,sizeof(float));/*Allocating space for K(rows) and D(features)*/
-
-    float *Distance;/*Array for holding the distance between each element from each Centroid*/
-    Distance = (float*)calloc(N*K,sizeof(float));/*Allocating space for N(elements) * K(Centroids)*/
-
-    float *Min;/*Array for holding the min Distance*/
-    Min = (float*)calloc(N,sizeof(float));
-
-    // int *Location;/*Array holding each element's location(cluster)*/
-    // Location = (int*)calloc(N,sizeof(int));
-
-
-    /*--------------------------*/
-
-    /*---------Loading Data---------*/
-    // for(i = 0; i < N; ++i)
-    // {
-    //   for(d = 0; d < D; ++d)
-    //    // fscanf(Dataset,"%f,",&DataArray[i*D + d]);/*"%f," is c undefined behaviour */
-
-    // }
-    //fclose(Dataset);//Closing the initial Data File
-    /*--------------------------*/
-
-    /*--------Generating Initial Random Centroids-----*/
-    // --- k-means++ initialization ---
-Centroids[0*D + 0] = DataArray[0*D + 0];
-for (d = 1; d < D; ++d)
-    Centroids[0*D + d] = DataArray[0*D + d];
-
-// Array to store the minimum squared distance to any centroid so far
-float *minDistSq = (float*)calloc(N, sizeof(float));
-if (!minDistSq) { printf("Memory error\n"); exit(1); }
-
-for (i = 0; i < N; ++i) {
-    float dist = 0.0;
-    for (d = 0; d < D; ++d)
-        dist += (DataArray[i*D + d] - Centroids[0*D + d]) * (DataArray[i*D + d] - Centroids[0*D + d]);
-    minDistSq[i] = dist;
-}
-
-// Select the rest K-1 centroids
-for (j = 1; j < K; ++j) {
-    // 1. Compute total of minDistSq
-    float total = 0.0;
-    for (i = 0; i < N; ++i)
-        total += minDistSq[i];
-
-    // 2. Pick a random value in [0, total)
-    float r = ((float)rand() / RAND_MAX) * total;
-
-    // 3. Find the data point at or just above this value
-    float cumSum = 0.0;
-    int nextCentroid = N-1; // fallback
-    for (i = 0; i < N; ++i) {
-        cumSum += minDistSq[i];
-        if (cumSum >= r) {
-            nextCentroid = i;
-            break;
-        }
-    }
-
-    // 4. Assign this as the next centroid
-    for (d = 0; d < D; ++d)
-        Centroids[j*D + d] = DataArray[nextCentroid*D + d];
-
-    // 5. Update minDistSq for all points
+    // Parallel distance computation for first centroid
+    #pragma omp parallel for private(d) schedule(static)
     for (i = 0; i < N; ++i) {
         float dist = 0.0;
-        for (d = 0; d < D; ++d)
-            dist += (DataArray[i*D + d] - Centroids[j*D + d]) * (DataArray[i*D + d] - Centroids[j*D + d]);
-        if (dist < minDistSq[i])
-            minDistSq[i] = dist;
+        for (d = 0; d < D; ++d) {
+            float diff = DataArray[i*D + d] - Centroids[0*D + d];
+            dist += diff * diff;
+        }
+        minDistSq[i] = dist;
     }
-}
 
-// Copy Centroids to FlagCentroids
-for (j = 0; j < K; ++j)
-    for (d = 0; d < D; ++d)
-        FlagCentroids[j*D + d] = Centroids[j*D + d];
+    // Select remaining K-1 centroids
+    for (j = 1; j < K; ++j) {
+        // Compute total (can be parallelized with reduction)
+        float total = 0.0;
+        #pragma omp parallel for reduction(+:total) schedule(static)
+        for (i = 0; i < N; ++i)
+            total += minDistSq[i];
 
-free(minDistSq);
-// --- end k-means++ initialization ---
-
-      /*--------------------------*/
-
-start = clock();
-  /*--Initializing the algoritm---*/
-    do {
-
-      /*For every iteration after the initial one resets the counter and sums to 0*/
-      if(iteration > 0)
-      {
-        for(j = 0; j < K; ++j)
-        {
-          Counter[j] = 0;//Resets counter array to 0
-          for(d = 0; d < D; ++d)
-          {
-            ClusterTotalSum[j*D + d] = 0;//Resets Sum of each cluster to 0
-          }
-        }
-      }
-
-      for(i = 0; i < N; ++i)
-      {
-        Min[i] = FLAG_MAX;
-        for(j = 0; j < K; ++j)
-        {
-          Distance[i*K + j] = 0;/*Reseting Distance at every iteration to 0 to calculate new ones */
-          for(d = 0; d < D; ++d)
-          {
-            /*Calculating distance for each element from each centroid by using sqrt(pow((x-y),2))*/
-            Distance[i*K + j] +=((DataArray[i*D + d] - Centroids[j*D + d])*(DataArray[i*D + d] - Centroids[j*D + d]));
-          }
-          Distance[i*K + j] = sqrt(Distance[i*K + j]);/*Getting the sqrt of the total features distance*/
-
-         /*Everytime it finds a distance Smaller than previous it stores it's cluster location*/
-          if(Distance[i*K + j] < Min[i])
-          {
-            Min[i] = Distance[i*K + j];
-            Location[i] = j;
-          }
-        }
-  /*For every element's  j(current Cluster)==location add it to Cluster's total sum
-  and increase counter by 1 for the corresponding cluster */
-        for(j = 0; j < K; ++j)
-        {
-          if(Location[i] == j)
-          {
-            for(d = 0; d < D; ++d)
-            {
-              ClusterTotalSum[j*D + d] += DataArray[i*D + d];
+        // Pick random value and find next centroid
+        float r = ((float)rand() / RAND_MAX) * total;
+        float cumSum = 0.0;
+        int nextCentroid = N-1;
+        for (i = 0; i < N; ++i) {
+            cumSum += minDistSq[i];
+            if (cumSum >= r) {
+                nextCentroid = i;
+                break;
             }
-            ++Counter[j];
-          }
         }
-      }
 
- /*Calculate new Centroids by dividing each feature sum with Counter */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
+        // Assign next centroid
+        for (d = 0; d < D; ++d)
+            Centroids[j*D + d] = DataArray[nextCentroid*D + d];
+
+        // Update minDistSq in parallel
+        #pragma omp parallel for private(d) schedule(static)
+        for (i = 0; i < N; ++i) {
+            float dist = 0.0;
+            for (d = 0; d < D; ++d) {
+                float diff = DataArray[i*D + d] - Centroids[j*D + d];
+                dist += diff * diff;
+            }
+            if (dist < minDistSq[i])
+                minDistSq[i] = dist;
+        }
+    }
+
+    // Copy initial centroids
+    #pragma omp parallel for collapse(2) schedule(static)
+    for (j = 0; j < K; ++j)
+        for (d = 0; d < D; ++d)
+            FlagCentroids[j*D + d] = Centroids[j*D + d];
+
+    free(minDistSq);
+
+    start = clock();
+    
+    /*--Main K-means Algorithm Loop---*/
+    do {
+        // Reset counters and sums in parallel
+        if(iteration > 0) {
+            #pragma omp parallel for schedule(static)
+            for(j = 0; j < K; ++j) {
+                Counter[j] = 0;
+                for(d = 0; d < D; ++d) {
+                    ClusterTotalSum[j*D + d] = 0;
+                }
+            }
+        }
+
+        // MAIN COMPUTATION: Distance calculation and assignment (parallelized)
+        #pragma omp parallel for private(j, d) schedule(static)
+        for(i = 0; i < N; ++i) {
+            Min[i] = FLAG_MAX;
+            
+            // Calculate distances to all centroids
+            for(j = 0; j < K; ++j) {
+                Distance[i*K + j] = 0;
+                for(d = 0; d < D; ++d) {
+                    float diff = DataArray[i*D + d] - Centroids[j*D + d];
+                    Distance[i*K + j] += diff * diff;
+                }
+                Distance[i*K + j] = sqrt(Distance[i*K + j]);
+
+                // Find minimum distance and assign cluster
+                if(Distance[i*K + j] < Min[i]) {
+                    Min[i] = Distance[i*K + j];
+                    Location[i] = j;
+                }
+            }
+        }
+
+        // Accumulate cluster sums (this needs careful parallelization due to race conditions)
+        // Using atomic operations or reduction clauses
+        #pragma omp parallel
         {
-          Centroids[j*D + d] = ClusterTotalSum[j*D +d]/Counter[j];
+            // Create thread-private arrays for accumulation
+            int *localCounter = (int*)calloc(K, sizeof(int));
+            float *localSum = (float*)calloc(K*D, sizeof(float));
+            
+            #pragma omp for nowait schedule(static)
+            for(i = 0; i < N; ++i) {
+                int cluster = Location[i];
+                localCounter[cluster]++;
+                for(d = 0; d < D; ++d) {
+                    localSum[cluster*D + d] += DataArray[i*D + d];
+                }
+            }
+            
+            // Combine results from all threads
+            #pragma omp critical
+            {
+                for(j = 0; j < K; ++j) {
+                    Counter[j] += localCounter[j];
+                    for(d = 0; d < D; ++d) {
+                        ClusterTotalSum[j*D + d] += localSum[j*D + d];
+                    }
+                }
+            }
+            
+            free(localCounter);
+            free(localSum);
         }
-      }
 
-/*If even one feature of flag is different than the equal to Centroids
-it set's flagEnd to 0 and breaks the nested for loop and follows with an if to
-break the parent for loop. If all features are equal then set flagEnd to -1 which
-breaks the do-while loop */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
-        {
-          if(FlagCentroids[j*D + d] != Centroids[j*D + d])
-          {
-            flagEnd = 0;
-             break;
-          }else
-          {
-            flagEnd = -1;
-          }
-          
+        // Calculate new centroids in parallel
+        #pragma omp parallel for collapse(2) schedule(static)
+        for(j = 0; j < K; ++j) {
+            for(d = 0; d < D; ++d) {
+                if(Counter[j] > 0) {
+                    Centroids[j*D + d] = ClusterTotalSum[j*D + d] / Counter[j];
+                }
+            }
         }
 
-        if(flagEnd == 0)
-          break;
-      }
-
-
-/*Copy new Centroids to FlagCentroids */
-      for(j = 0; j < K; ++j)
-      {
-        for(d = 0; d < D; ++d)
-        {
-          FlagCentroids[j*D + d] = Centroids[j*D + d];
+        // Check convergence (parallelized with early termination)
+        flagEnd = -1; // Assume convergence
+        #pragma omp parallel for collapse(2) schedule(static)
+        for(j = 0; j < K; ++j) {
+            for(d = 0; d < D; ++d) {
+                if(FlagCentroids[j*D + d] != Centroids[j*D + d]) {
+                    #pragma omp atomic write
+                    flagEnd = 0;
+                }
+            }
         }
-      }
 
-      ++iteration;
+        // Copy new centroids to flag array
+        #pragma omp parallel for collapse(2) schedule(static)
+        for(j = 0; j < K; ++j) {
+            for(d = 0; d < D; ++d) {
+                FlagCentroids[j*D + d] = Centroids[j*D + d];
+            }
+        }
+
+        ++iteration;
 
     } while(flagEnd != -1);
 
     end = clock();
 
-    // printf("\n Iterations : %d\n",iteration );
-    // double total_time = ((double) (end - start)) / CLOCKS_PER_SEC;
-    // printf("\n Time of Algorithm Execution: %lf \n\n",total_time);
+    // Store final centroids
+    #pragma omp parallel for schedule(static)
+    for (int j = 0; j < K * D; ++j) {
+        Location[N + j] = Centroids[j];
+    }
 
-    
-for (int j = 0; j < K * D; ++j) {
-    Location[N + j] = Centroids[j];
-}
-//  for(int i=0;i<100;i++)
-//   printf(" %d",Location[i]);
-
-  //  free(DataArray);
+    // Cleanup
     free(Centroids);
     free(FlagCentroids);
     free(Counter);
     free(ClusterTotalSum);
     free(Distance);
     free(Min);
-    return(Location);
-    //free(Location);
-   // free(OutputArray);
-
- // return 0;
+    
+    return Location;
 }
