@@ -1,13 +1,13 @@
 # Compiler
 CC = gcc
 
-# Paths
-INCLUDE_DIR = C:\msys64\mingw64\include
-LIB_DIR = C:\msys64\mingw64\lib
+# Automatically detect SDL3 paths
+SDL3_CFLAGS := $(shell pkg-config --cflags sdl3 SDL3_ttf 2>nul || echo -I"C:\msys64\mingw64\include")
+SDL3_LIBS := $(shell pkg-config --libs sdl3 SDL3_ttf 2>nul || echo -L"C:\msys64\mingw64\lib" -lSDL3 -lSDL3_ttf)
 
 # Compiler Flags
-CFLAGS = -I"$(INCLUDE_DIR)"
-LDFLAGS = -L"$(LIB_DIR)" -fopenmp -O3 -lmingw32 -lSDL3 -lSDL3_ttf
+CFLAGS = $(SDL3_CFLAGS) -fopenmp -O3
+LDFLAGS = -lmingw32 $(SDL3_LIBS)
 
 # Targets
 TARGETS = kmeans.exe
@@ -19,10 +19,10 @@ KMEANS_HDR = kmeans.h
 # Build Rule
 all: $(TARGETS)
 
-# Explicit dependency on kmeans.h
 kmeans.exe: $(KMEANS_SRC) $(KMEANS_HDR)
 	$(CC) $(KMEANS_SRC) -o kmeans.exe $(CFLAGS) $(LDFLAGS)
 
-# Clean Rule
 clean:
-	del /Q $(TARGETS)
+	del /Q $(TARGETS) 2>nul || echo Clean complete
+
+.PHONY: all clean
