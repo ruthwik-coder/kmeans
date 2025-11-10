@@ -194,6 +194,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         // Convert and scale frame to current viewport dimensions
         SDL_Surface* aa = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGB24);
         SDL_Surface* rgb_frame = SDL_ScaleSurface(aa, camera_viewport.w, camera_viewport.h, SDL_SCALEMODE_NEAREST);
+        
         SDL_DestroySurface(aa);
         
         int N = rgb_frame->w * rgb_frame->h;
