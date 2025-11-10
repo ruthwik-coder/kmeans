@@ -1,4 +1,4 @@
-# K-Means Color Quantization Camera Application
+# Implementing K-Means algorithm on real-time Camera Frames in SDL3 
 
 A real-time computer vision application that applies K-means clustering to live camera feeds for color quantization and palette extraction.
 
@@ -63,6 +63,9 @@ gcc kmeans.c -o kmeans.exe -fopenmp -O3 -lmingw32 -lSDL3 -lSDL3_ttf && kmeans
 
 
 Make sure to have SDL3.dll and SDL3_ttf.dll in the same directory as your executable , if you're on Windows.
+
+Screenshot from Progam:
+<img width="1286" height="767" alt="image" src="https://github.com/user-attachments/assets/95ed804e-670f-490a-8824-6c74df449fa4" />
 
 ## Acknowledgments
 
